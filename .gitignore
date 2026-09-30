@@ -1,0 +1,21 @@
+# Secrets / local config
+.env
+backend/config/
+
+# Logs
+*.log
+
+# Temp test files
+login.json
+req.json
+
+# Build
+target/
+node_modules/
+.next/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.zip
