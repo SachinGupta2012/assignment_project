@@ -4,8 +4,8 @@ import jakarta.validation.constraints.Size;
 
 public class CourseRequest{
     @NotBlank(message="Title must not be blank")
-    @Size(max=500, message=Title at most )
-    private String Title;
+    @Size(max=500, message="Title must be at most 500 characters")
+    private String title;
     private String description;
 
     @NotBlank(message="Instructor id can't be blank")
@@ -14,13 +14,13 @@ public class CourseRequest{
     
     public CourseRequest(){}
     public String getTitle(){return title;}
-    public void setTitle(String Title){this.title = title;}
+    public void setTitle(String title){this.title = title;}
     public String getDescription(){return description;}
-    public String setDescription(String description){this.description = description;}
+    public void setDescription(String description){this.description = description;}
 
     public Long getInstructorId(){return instructorId;}
     public void setInstructorId(Long instructorId){this.instructorId=instructorId;}
-    publiv Integer getestimatedDuration(){return estimatedDuration;}
-    public void setestimatedDuration(Integer estimatedDuration){this.estimatedDuration = estimatedDuration;}
+    public Integer getEstimateDuration(){return estimateDuration;}
+    public void setEstimateDuration(Integer estimateDuration){this.estimateDuration = estimateDuration;}
 
 }

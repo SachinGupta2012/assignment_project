@@ -1,11 +1,11 @@
 package com.lms.dto;
 public class CourseResponse{
-    private Long id;
-    private String title;
-    private String description;
-    private String instructorName;
-    private boolean isPublished;
-    private Integer estimatedDuration;
+    private final Long id;
+    private final String title;
+    private final String description;
+    private final String instructorName;
+    private final boolean isPublished;
+    private final Integer estimatedDuration;
     public CourseResponse(Long id, String title, String description, String instructorName, boolean isPublished, Integer estimatedDuration){
         this.id = id;
         this.title = title;
