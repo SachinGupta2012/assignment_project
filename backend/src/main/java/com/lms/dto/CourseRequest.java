@@ -1,5 +1,6 @@
 package com.lms.dto;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class CourseRequest{
@@ -8,7 +9,7 @@ public class CourseRequest{
     private String title;
     private String description;
 
-    @NotBlank(message="Instructor id can't be blank")
+    @NotNull(message="Instructor id can't be blank")
     private Long instructorId;
     private Integer estimateDuration;
     

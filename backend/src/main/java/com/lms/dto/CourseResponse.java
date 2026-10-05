@@ -18,7 +18,7 @@ public class CourseResponse{
     public Long getId(){return id;}
     public String gettitle(){return title;}
     public String getdescription(){return description;}
-    public String getinstructotName(){return instructorName;}
+    public String getInstructorName(){return instructorName;}
     public boolean getisPublished(){return isPublished;}
     public Integer getestimatedDuration(){return estimatedDuration;}
 }

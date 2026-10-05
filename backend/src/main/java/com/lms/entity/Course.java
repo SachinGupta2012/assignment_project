@@ -27,8 +27,8 @@ public class Course {
     @Column(name = "is_published", nullable = false)
     private Boolean isPublished = false;
 
-    @Column(name = "estimated_duration_minutes")
-    private Integer estimatedDurationMinutes;
+    @Column(name = "estimated_duration")
+    private Integer estimatedDuration;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
@@ -65,8 +65,8 @@ public class Course {
     public Boolean getIsPublished() { return isPublished; }
     public void setIsPublished(Boolean isPublished) { this.isPublished = isPublished; }
 
-    public Integer getEstimatedDurationMinutes() { return estimatedDurationMinutes; }
-    public void setEstimatedDurationMinutes(Integer estimatedDurationMinutes) { this.estimatedDurationMinutes = estimatedDurationMinutes; }
+    public Integer getEstimatedDuration() { return estimatedDuration; }
+    public void setEstimatedDuration(Integer estimatedDuration) { this.estimatedDuration = estimatedDuration; }
 
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
