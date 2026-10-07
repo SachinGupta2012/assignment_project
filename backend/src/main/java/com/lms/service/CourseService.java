@@ -1,6 +1,7 @@
 package com.lms.service;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -33,9 +34,19 @@ public class CourseService {
         User instructor = userRepository.findById(request.getInstructorId())
                 .orElseThrow(() -> new RuntimeException("Instructor not found"));
 
+        if(!Set.of("beginner","intermediate","advanced").contains(request.getLevel().toLowerCase())){
+            throw new RuntimeException("Invalid level:"+request.getLevel());
+
+        }
+        if(!Set.of("open","self_enroll","instructor_approval").contains(request.getEnrollmentMode().toLowerCase())){
+            throw new RuntimeException("Invalid enrollment mode:"+request.getEnrollmentMode());
+        }
+
         Course course = new Course();
         course.setTitle(request.getTitle());
         course.setDescription(request.getDescription());
+        course.setLevel(request.getLevel());
+        course.setEnrollmentMode(request.getEnrollmentMode());
         course.setInstructor(instructor);
         course.setEstimatedDuration(request.getEstimateDuration());
         course.setCreatedBy(currentUser);    
@@ -68,7 +79,9 @@ public class CourseService {
                 course.getDescription(),
                 instructorName,
                 course.getIsPublished(),
-                course.getEstimatedDuration()
+                course.getEstimatedDuration(),
+                course.getLevel(),
+                course.getEnrollmentMode()
         );
     }
 }

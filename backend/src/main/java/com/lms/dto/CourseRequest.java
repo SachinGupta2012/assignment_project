@@ -12,6 +12,12 @@ public class CourseRequest{
     @NotNull(message="Instructor id can't be blank")
     private Long instructorId;
     private Integer estimateDuration;
+
+    @NotNull(message="Level can not be blank")
+    private String level;
+    @NotNull(message="Enrollment mode can not be blank")
+    private String enrollmentMode;
+
     
     public CourseRequest(){}
     public String getTitle(){return title;}
@@ -23,5 +29,11 @@ public class CourseRequest{
     public void setInstructorId(Long instructorId){this.instructorId=instructorId;}
     public Integer getEstimateDuration(){return estimateDuration;}
     public void setEstimateDuration(Integer estimateDuration){this.estimateDuration = estimateDuration;}
+
+    public String getLevel(){return level;}
+    public void setLevel(String level){this.level=level;}
+    public String getEnrollmentMode(){return enrollmentMode;}
+    public void setEnrollmentMode(String enrollmentMode){this.enrollmentMode=enrollmentMode;}
+
 
 }

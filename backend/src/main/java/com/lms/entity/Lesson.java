@@ -35,7 +35,7 @@ public class Lesson {
     @Column(name = "is_required", nullable = false)
     private Boolean isRequired = true;
 
-    @Column(name = "duration_minutes")
+    @Column(name = "duration")
     private Integer durationMinutes;
 
     @ManyToOne(fetch = FetchType.LAZY)

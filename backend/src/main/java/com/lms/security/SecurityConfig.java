@@ -37,7 +37,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.POST, "/api/courses").hasAnyRole("ADMIN", "TRAINING_MANAGER")
+                .requestMatchers(HttpMethod.POST, "/api/courses").hasAnyRole("ADMIN", "INSTRUCTOR")
+                .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/modules").hasAnyRole("ADMIN", "INSTRUCTOR")
+                .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/modules/{moduleId}/lessons").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
