@@ -40,6 +40,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/courses").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/modules").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/modules/{moduleId}/lessons").hasAnyRole("ADMIN", "INSTRUCTOR")
+                .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/enrollments").hasAnyRole("ADMIN", "TRAINING_MANAGER")
+                .requestMatchers(HttpMethod.PATCH, "/api/enrollments/{enrollmentId}").hasAnyRole("ADMIN", "TRAINING_MANAGER")
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()

@@ -22,7 +22,7 @@ public class Enrollment {
     private Course course;
 
     @Column(nullable = false)
-    private String status = "enrolled";
+    private String status = "pending";
 
     @Column(name = "enrolled_at", nullable = false)
     private LocalDateTime enrolledAt = LocalDateTime.now();
@@ -62,10 +62,8 @@ public class Enrollment {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
     public LocalDateTime getEnrolledAt() { return enrolledAt; }
     public void setEnrolledAt(LocalDateTime enrolledAt) { this.enrolledAt = enrolledAt; }
-
     public LocalDateTime getDueDate() { return dueDate; }
     public void setDueDate(LocalDateTime dueDate) { this.dueDate = dueDate; }
 
