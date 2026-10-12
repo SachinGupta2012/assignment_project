@@ -2,6 +2,8 @@ package com.lms.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,18 +31,33 @@ public class EnrollmentController {
     }
 
     @PostMapping("/courses/{courseId}/enrollments")
-    public ResponseEntity<EnrollmentResponse> enroll(@PathVariable Long courseId,@Valid @RequestBody EnrollmentRequest request) {
+    public ResponseEntity<EnrollmentResponse> enroll(@PathVariable Long courseId,
+                                                     @Valid @RequestBody EnrollmentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(enrollmentService.enroll(courseId, request));
     }
 
+    @PostMapping("/courses/{courseId}/self-enroll")
+    public ResponseEntity<EnrollmentResponse> selfEnroll(@PathVariable Long courseId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(enrollmentService.selfEnroll(courseId));
+    }
+
+    @GetMapping("/enrollments/me")
+    public ResponseEntity<List<EnrollmentResponse>> myEnrollments(
+            @RequestParam(required = false, defaultValue = "all") String view) {
+        return ResponseEntity.ok(enrollmentService.myEnrollments(view));
+    }
+
     @GetMapping("/courses/{courseId}/enrollments")
-    public ResponseEntity<List<EnrollmentResponse>> getByCourse(@PathVariable Long courseId) {
-        return ResponseEntity.ok(enrollmentService.getByCourse(courseId));
+    public ResponseEntity<Page<EnrollmentResponse>> getByCourse(@PathVariable Long courseId,
+                                                                Pageable pageable) {
+        return ResponseEntity.ok(enrollmentService.getByCourse(courseId, pageable));
     }
 
     @PatchMapping("/enrollments/{enrollmentId}")
-    public ResponseEntity<EnrollmentResponse> updateStatus(@PathVariable Long enrollmentId,@RequestParam String status) {
+    public ResponseEntity<EnrollmentResponse> updateStatus(@PathVariable Long enrollmentId,
+                                                           @RequestParam String status) {
         return ResponseEntity.ok(enrollmentService.updateStatus(enrollmentId, status));
     }
 }

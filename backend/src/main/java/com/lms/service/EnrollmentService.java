@@ -2,7 +2,11 @@ package com.lms.service;
 
 import java.util.List;
 import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +28,19 @@ public class EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final ActivityService activityService;
 
     public EnrollmentService(EnrollmentRepository enrollmentRepository,
                              CourseRepository courseRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             NotificationService notificationService,
+                             ActivityService activityService) {
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
+        this.activityService = activityService;
     }
 
     // POST api foro /api/courses/{courseId}/enrollments
@@ -57,18 +67,71 @@ public class EnrollmentService {
         enrollment.setUpdatedBy(currentUser);
 
         Enrollment saved = enrollmentRepository.save(enrollment);
+
+        notificationService.create(learner, "ENROLLMENT",
+                "Enrolled in " + course.getTitle(),
+                "You have been enrolled in " + course.getTitle() + " by " + currentUser.getEmail());
+
+        activityService.record(currentUser, "ENROLLMENT_CREATED", "enrollment", saved.getId());
+
         return toResponse(saved);
     }
 
-    // GET api for/api/courses/{courseId}/enrollments
+    // GET /api/courses/{courseId}/enrollments
     @Transactional(readOnly = true)
-    public List<EnrollmentResponse> getByCourse(Long courseId) {
+    public Page<EnrollmentResponse> getByCourse(Long courseId, Pageable pageable) {
         if (!courseRepository.existsById(courseId)) {
             throw new RuntimeException("Course not found: " + courseId);
         }
-        return enrollmentRepository.findByCourseId(courseId).stream()
-                .map(this::toResponse)
-                .toList();
+        return enrollmentRepository.findByCourseId(courseId, pageable).map(this::toResponse);
+    }
+
+    // POST /api/courses/{courseId}/self-enroll
+    @Transactional
+    public EnrollmentResponse selfEnroll(Long courseId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found: " + courseId));
+        String mode = course.getEnrollmentMode() == null ? "" : course.getEnrollmentMode().toLowerCase();
+        if (!"open".equals(mode) && !"self_enroll".equals(mode)) {
+            throw new RuntimeException("This course does not allow self-enrollment");
+        }
+        if (!Boolean.TRUE.equals(course.getIsPublished()) || Boolean.TRUE.equals(course.getIsArchived())) {
+            throw new RuntimeException("This course is not available for enrollment");
+        }
+        User learner = getCurrentUser();
+        if (enrollmentRepository.existsByUserIdAndCourseId(learner.getId(), courseId)) {
+            throw new RuntimeException("Learner is already enrolled in this course");
+        }
+        Enrollment enrollment = new Enrollment();
+        enrollment.setCourse(course);
+        enrollment.setUser(learner);
+        enrollment.setStatus("approved");
+        enrollment.setCreatedBy(learner);
+        enrollment.setUpdatedBy(learner);
+        Enrollment saved = enrollmentRepository.save(enrollment);
+        return toResponse(saved);
+    }
+
+    // GET /api/enrollments/me?view=current|overdue|all
+    @Transactional(readOnly = true)
+    public List<EnrollmentResponse> myEnrollments(String view) {
+        User learner = getCurrentUser();
+        List<Enrollment> all = enrollmentRepository.findByUserId(learner.getId());
+        List<EnrollmentResponse> out = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (Enrollment enrollment : all) {
+            boolean overdue = enrollment.getDueDate() != null
+                    && enrollment.getDueDate().isBefore(now)
+                    && "approved".equals(enrollment.getStatus());
+            if ("overdue".equals(view) && !overdue) {
+                continue;
+            }
+            if ("current".equals(view) && (overdue || !"approved".equals(enrollment.getStatus()))) {
+                continue;
+            }
+            out.add(toResponse(enrollment));
+        }
+        return out;
     }
 
     // PATCH  api for/api/enrollments/{enrollmentId}?status=approved

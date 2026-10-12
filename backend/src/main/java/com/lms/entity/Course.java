@@ -47,6 +47,12 @@ public class Course {
     @Column(name="enrollment_mode")
     private String enrollmentMode="open";
 
+    @Column(name = "is_archived", nullable = false)
+    private Boolean isArchived = false;
+
+    @Column(length = 500)
+    private String tags;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -90,6 +96,11 @@ public class Course {
 
     public String getEnrollmentMode(){return enrollmentMode;}
     public void setEnrollmentMode(String enrollmentMode){this.enrollmentMode=enrollmentMode;}
+
+    public Boolean getIsArchived() { return isArchived; }
+    public void setIsArchived(Boolean isArchived) { this.isArchived = isArchived; }
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
 

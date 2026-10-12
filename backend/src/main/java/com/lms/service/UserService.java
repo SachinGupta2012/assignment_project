@@ -39,6 +39,15 @@ public class UserService {
                 .toList();
     }
 
+    // PATCH /api/admin/users/{userId}/active?active=
+    @Transactional
+    public UserResponse setActive(Long userId, boolean active) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        user.setIsActive(active);
+        return toResponse(userRepository.save(user));
+    }
+
     private String resolveRole(User user) {
         return user.getRoles().isEmpty()
                 ? "LEARNER"

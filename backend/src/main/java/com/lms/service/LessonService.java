@@ -18,7 +18,7 @@ import java.util.Set;
 @Service
 public class LessonService {
 
-    private static final Set<String> ALLOWED_TYPES = Set.of("text", "video", "link", "quiz");
+    private static final Set<String> ALLOWED_TYPES = Set.of("text", "video", "link", "quiz", "file");
 
     private final LessonRepository lessonRepository;
     private final CourseModuleRepository moduleRepository;
@@ -47,7 +47,7 @@ public class LessonService {
                 ? "text" : request.getContentType().toLowerCase();
         if (!ALLOWED_TYPES.contains(contentType)) {
             throw new RuntimeException("Invalid content type: " + contentType
-                    + " (allowed: text, video, link, quiz)");
+                    + " (allowed: text, video, link, quiz, file)");
         }
 
         User currentUser = getCurrentUser();
@@ -79,6 +79,36 @@ public class LessonService {
         return lessonRepository.findByModuleIdOrderByDisplayOrder(moduleId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    // PUT /api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId} (edit + reorder)
+    @Transactional
+    public LessonResponse update(Long courseId, Long moduleId, Long lessonId, LessonRequest request) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new RuntimeException("Lesson not found: " + lessonId));
+        if (!lesson.getModule().getId().equals(moduleId)
+                || !lesson.getModule().getCourse().getId().equals(courseId)) {
+            throw new RuntimeException("Lesson " + lessonId + " does not belong to module " + moduleId);
+        }
+
+        String contentType = request.getContentType() == null || request.getContentType().isBlank()
+                ? "text" : request.getContentType().toLowerCase();
+        if (!ALLOWED_TYPES.contains(contentType)) {
+            throw new RuntimeException("Invalid content type: " + contentType
+                    + " (allowed: text, video, link, quiz, file)");
+        }
+
+        lesson.setTitle(request.getTitle());
+        lesson.setContentType(contentType);
+        lesson.setContentUrl(request.getContentUrl());
+        lesson.setContentBody(request.getContentBody());
+        lesson.setDisplayOrder(request.getDisplayOrder());
+        lesson.setIsRequired(request.getIsRequired() == null || request.getIsRequired());
+        lesson.setDurationMinutes(request.getDuration());
+        lesson.setUpdatedBy(getCurrentUser());
+
+        Lesson saved = lessonRepository.save(lesson);
+        return toResponse(saved);
     }
 
     private User getCurrentUser() {

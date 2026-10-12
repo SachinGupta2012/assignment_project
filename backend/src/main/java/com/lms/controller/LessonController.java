@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,7 +37,15 @@ public class LessonController {
 
     @GetMapping
     public ResponseEntity<List<LessonResponse>> getAll(@PathVariable Long courseId,
-                                                       @PathVariable Long moduleId) {
+                                                        @PathVariable Long moduleId) {
         return ResponseEntity.ok(lessonService.getByModule(courseId, moduleId));
+    }
+
+    @PutMapping("/{lessonId}")
+    public ResponseEntity<LessonResponse> update(@PathVariable Long courseId,
+                                                 @PathVariable Long moduleId,
+                                                 @PathVariable Long lessonId,
+                                                 @Valid @RequestBody LessonRequest request) {
+        return ResponseEntity.ok(lessonService.update(courseId, moduleId, lessonId, request));
     }
 }
