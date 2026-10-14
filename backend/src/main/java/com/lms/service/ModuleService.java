@@ -62,6 +62,23 @@ public class ModuleService {
                 .toList();
     }
 
+    // PUT /api/courses/{courseId}/modules/{moduleId} (edit + reorder, progress-safe:
+    // displayOrder changes never touch completions, which reference lesson ids)
+    @Transactional
+    public ModuleResponse update(Long courseId, Long moduleId, ModuleRequest request) {
+        CourseModule module = moduleRepository.findById(moduleId)
+                .orElseThrow(() -> new RuntimeException("Module not found: " + moduleId));
+        if (!module.getCourse().getId().equals(courseId)) {
+            throw new RuntimeException("Module " + moduleId + " does not belong to course " + courseId);
+        }
+        module.setTitle(request.getTitle());
+        module.setDescription(request.getDescription());
+        module.setDisplayOrder(request.getDisplayOrder());
+        module.setIsRequired(request.getIsRequired() == null || request.getIsRequired());
+        module.setUpdatedBy(getCurrentUser());
+        return toResponse(moduleRepository.save(module));
+    }
+
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)

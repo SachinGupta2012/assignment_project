@@ -39,7 +39,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/api/courses").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/modules").hasAnyRole("ADMIN", "INSTRUCTOR")
+                .requestMatchers(HttpMethod.PUT, "/api/courses/{courseId}/modules/{moduleId}").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/modules/{moduleId}/lessons").hasAnyRole("ADMIN", "INSTRUCTOR")
+                .requestMatchers(HttpMethod.PUT, "/api/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/enrollments").hasAnyRole("ADMIN", "TRAINING_MANAGER")
                 .requestMatchers(HttpMethod.PATCH, "/api/enrollments/{enrollmentId}").hasAnyRole("ADMIN", "TRAINING_MANAGER")
                 .requestMatchers(HttpMethod.POST, "/api/courses/{courseId}/assessments").hasAnyRole("ADMIN", "INSTRUCTOR")
@@ -47,6 +49,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/assessments/{assessmentId}/questions/with-answers").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/assessments/{assessmentId}/attempts").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/attempts/{attemptId}/submit").hasAnyRole("LEARNER", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/attempts/{attemptId}/answers").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/assessments/{assessmentId}/attempts/me").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/grading/queue").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/grading/answers/{answerId}").hasAnyRole("ADMIN", "INSTRUCTOR")
