@@ -15,13 +15,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+import com.lms.entity.User;
+import com.lms.repository.UserRepository;
+
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    public JwtAuthFilter(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -39,6 +44,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     if(jwtUtil.validateToken(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
         String email = jwtUtil.extractEmail(token);
         String role = jwtUtil.extractRole(token);
+        // deactivated accounts lose access immediately, even with a valid token
+        boolean active = userRepository.findByEmail(email).map(User::getIsActive).orElse(false);
+        if (!active) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                 email,
                 null,

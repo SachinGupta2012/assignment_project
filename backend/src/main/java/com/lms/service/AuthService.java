@@ -44,6 +44,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword())); // hash password
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setIsActive(true); // new accounts start active; admin can deactivate later
 
         // Assign role
         String roleName = (request.getRole() == null || request.getRole().isBlank())
@@ -65,6 +66,10 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Invalid credentials");
+        }
+
+        if (!user.getIsActive()) {
+            throw new RuntimeException("Account is deactivated");
         }
 
         
