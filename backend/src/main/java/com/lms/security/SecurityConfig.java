@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/grading/answers/{answerId}").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/lessons/{lessonId}/complete").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/courses/{courseId}/resume").hasAnyRole("LEARNER", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/reports/**").hasAnyRole("ADMIN", "TRAINING_MANAGER")
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
