@@ -54,6 +54,7 @@ public class LessonService {
 
         Lesson lesson = new Lesson();
         lesson.setModule(module);
+        module.getLessons().add(lesson);
         lesson.setTitle(request.getTitle());
         lesson.setContentType(contentType);
         lesson.setContentUrl(request.getContentUrl());

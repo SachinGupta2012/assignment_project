@@ -40,6 +40,7 @@ public class ModuleService {
 
         CourseModule module = new CourseModule();
         module.setCourse(course);
+        course.getModules().add(module);
         module.setTitle(request.getTitle());
         module.setDescription(request.getDescription());
         module.setDisplayOrder(request.getDisplayOrder());

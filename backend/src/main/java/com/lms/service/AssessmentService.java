@@ -140,6 +140,7 @@ public class AssessmentService {
 
         Question question = new Question();
         question.setAssessment(assessment);
+        assessment.getQuestions().add(question);
         question.setQuestionText(request.getQuestionText());
         question.setQuestionType(type);
         question.setPoints(request.getPoints());
