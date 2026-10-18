@@ -75,10 +75,13 @@ public class CourseService {
 
     // GET /api/courses/search?title=&level=&instructorId=&published=&archived=&tag=
     @Transactional(readOnly = true)
-    public Page<CourseResponse> search(String title, String level, Long instructorId,
-                                       Boolean published, Boolean archived, String tag, Pageable pageable) {
-        return courseRepository.search(title, level, instructorId, published, archived, tag, pageable)
-                .map(this::toResponse);
+    public Page<CourseResponse> search(String title, String level, Long instructorId,Boolean published, Boolean archived, String tag, Pageable pageable) {
+        
+        // typed strings instead of untyped nulls
+        String titlePattern = title == null ? "%" : "%" + title.toLowerCase() + "%";
+        String tagPattern = tag == null ? "%" : "%" + tag.toLowerCase() + "%";
+        return courseRepository.search(title, titlePattern, level, instructorId,
+                published, archived, tag, tagPattern, pageable).map(this::toResponse);
     }
 
     // GET by id of courses (learners can only open published, non-archived courses)

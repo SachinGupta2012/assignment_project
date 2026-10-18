@@ -15,17 +15,17 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Page<Course> findByIsPublishedTrueAndIsArchivedFalse(Pageable pageable);
 
     @Query("select c from Course c where "
-         + "(:title is null or lower(c.title) like lower(concat('%', :title, '%'))) and "
+         + "(:title is null or lower(c.title) like :titlePattern) and "
          + "(:level is null or c.level = :level) and "
          + "(:instructorId is null or c.instructor.id = :instructorId) and "
          + "(:published is null or c.isPublished = :published) and "
          + "(:archived is null or c.isArchived = :archived) and "
-         + "(:tag is null or lower(c.tags) like lower(concat('%', :tag, '%')))")
-    Page<Course> search(@Param("title") String title,
-                        @Param("level") String level,
+         + "(:tag is null or lower(c.tags) like :tagPattern)")
+    Page<Course> search(@Param("title") String title,@Param("titlePattern") String titlePattern,@Param("level") String level,
                         @Param("instructorId") Long instructorId,
                         @Param("published") Boolean published,
                         @Param("archived") Boolean archived,
                         @Param("tag") String tag,
+                        @Param("tagPattern") String tagPattern,
                         Pageable pageable);
 }

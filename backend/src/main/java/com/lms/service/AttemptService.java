@@ -159,10 +159,9 @@ public class AttemptService {
                 }
                 rows.add(row);
             }
-            answerRepository.deleteByAttemptIdAndQuestionId(attemptId, item.getQuestionId());
         }
 
-        answerRepository.saveAll(rows);
+        reconcile(attemptId, rows);
         return toResponse(attempt);
     }
 
@@ -179,7 +178,6 @@ public class AttemptService {
         if (!"in_progress".equals(attempt.getStatus())) {
             throw new RuntimeException("Attempt already submitted — submitted responses cannot be edited");
         }
-        answerRepository.deleteByAttemptId(attemptId);
 
         Assessment assessment = attempt.getAssessment();
         if (assessment.getTimeLimitMinutes() != null && attempt.getStartedAt()
@@ -262,7 +260,7 @@ public class AttemptService {
             }
         }
 
-        answerRepository.saveAll(rows);
+        reconcile(attemptId, rows);
 
         attempt.setScore(totalScore);
         attempt.setMaxScore(totalMax);
@@ -283,6 +281,52 @@ public class AttemptService {
         activityService.record(me, "ATTEMPT_SUBMITTED", "attempt", saved.getId());
 
         return toResponse(saved);
+    }
+
+    // Update-in-place: match fresh rows to stored rows by answer key.
+    // A stored row that matches is updated, a genuinely new one is inserted,
+    // and a stored row nobody submitted anymore (unchecked option) is removed.
+    // Deleted and inserted keys are always disjoint, so the unique constraint
+    // can never fire regardless of flush order.
+    private void reconcile(Long attemptId, List<AttemptAnswer> fresh) {
+        List<AttemptAnswer> existing = answerRepository.findByAttemptId(attemptId);
+        java.util.Map<String, AttemptAnswer> byKey = new java.util.LinkedHashMap<>();
+        for (AttemptAnswer row : existing) {
+            byKey.put(keyOf(row), row);
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        List<AttemptAnswer> toInsert = new ArrayList<>();
+        for (AttemptAnswer row : fresh) {
+            String key = keyOf(row);
+            seen.add(key);
+            AttemptAnswer kept = byKey.get(key);
+            if (kept == null) {
+                toInsert.add(row);
+            } else {
+                kept.setQuestionText(row.getQuestionText());
+                kept.setPoints(row.getPoints());
+                kept.setSelectedOption(row.getSelectedOption());
+                kept.setSelectedOptionText(row.getSelectedOptionText());
+                kept.setAnswerText(row.getAnswerText());
+                kept.setIsCorrect(row.getIsCorrect());
+                kept.setPointsAwarded(row.getPointsAwarded());
+            }
+        }
+        List<AttemptAnswer> toDelete = new ArrayList<>();
+        for (java.util.Map.Entry<String, AttemptAnswer> entry : byKey.entrySet()) {
+            if (!seen.contains(entry.getKey())) {
+                toDelete.add(entry.getValue());
+            }
+        }
+        answerRepository.deleteAll(toDelete);
+        answerRepository.saveAll(toInsert);
+    }
+
+    private String keyOf(AttemptAnswer row) {
+        if (row.getSelectedOption() != null && row.getSelectedOption().getId() != null) {
+            return row.getQuestion().getId() + "O" + row.getSelectedOption().getId();
+        }
+        return row.getQuestion().getId() + "T";
     }
 
     private QuestionOption findOption(Question question, Long optionId) {
