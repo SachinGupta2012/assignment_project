@@ -2,12 +2,14 @@ package com.lms.dto;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 public class AttemptSubmitRequest {
 
     @NotEmpty(message = "answers must not be empty")
+    @Valid
     private List<AnswerItem> answers;
 
     public static class AnswerItem {

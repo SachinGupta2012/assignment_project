@@ -34,10 +34,9 @@ public class RequestValidationTest {
     }
 
     @Test
-    public void assessmentRequestWithoutCourseFails() {
+    public void assessmentRequestWithoutTitleFails() {
         AssessmentRequest request = new AssessmentRequest();
-        request.setTitle("Quiz");
         Set<ConstraintViolation<AssessmentRequest>> violations = validator.validate(request);
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("courseId")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("title")));
     }
 }

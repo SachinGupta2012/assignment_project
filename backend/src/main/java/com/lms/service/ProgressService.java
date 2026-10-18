@@ -86,6 +86,7 @@ public class ProgressService {
         LessonCompletion saved = completionRepository.save(completion);
 
         activityService.record(learner, "LESSON_COMPLETED", "lesson", lessonId);
+        refreshEnrollmentStatus(courseId, learner.getId());
 
         return new LessonCompletionResponse(lessonId, learner.getId(), saved.getCompletedAt());
     }
@@ -108,6 +109,33 @@ public class ProgressService {
                     .orElseThrow(() -> new RuntimeException("Learner not found: " + learnerId));
         }
 
+        return calculateProgress(course, learner);
+    }
+
+    @Transactional
+    public void refreshEnrollmentStatus(Long courseId, Long learnerId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found: " + courseId));
+        User learner = userRepository.findById(learnerId)
+                .orElseThrow(() -> new RuntimeException("Learner not found: " + learnerId));
+        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(learnerId, courseId)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+        ProgressResponse progress = calculateProgress(course, learner);
+        if (progress.getPercentage() == 100 && "approved".equals(enrollment.getStatus())) {
+            enrollment.setStatus("completed");
+            enrollment.setCompletedAt(LocalDateTime.now());
+            enrollment.setUpdatedBy(learner);
+            enrollmentRepository.save(enrollment);
+        } else if (progress.getPercentage() < 100 && "completed".equals(enrollment.getStatus())) {
+            enrollment.setStatus("approved");
+            enrollment.setCompletedAt(null);
+            enrollment.setUpdatedBy(learner);
+            enrollmentRepository.save(enrollment);
+        }
+    }
+
+    private ProgressResponse calculateProgress(Course course, User learner) {
+        Long courseId = course.getId();
         int lessonsTotal = 0;
         int lessonsDone = 0;
         for (CourseModule module : course.getModules()) {

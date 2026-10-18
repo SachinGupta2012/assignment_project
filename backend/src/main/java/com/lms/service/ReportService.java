@@ -52,7 +52,9 @@ public class ReportService {
         long overdue = 0;
         LocalDateTime now = LocalDateTime.now();
         for (Enrollment enrollment : enrollments) {
-            if ("approved".equals(enrollment.getStatus())) {
+            if ("completed".equals(enrollment.getStatus())) {
+                completed++;
+            } else if ("approved".equals(enrollment.getStatus())) {
                 approved++;
                 int percentage = progressService.getProgress(
                         courseId, enrollment.getUser().getId()).getPercentage();

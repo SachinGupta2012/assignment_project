@@ -126,6 +126,9 @@ public class EnrollmentService {
             if ("overdue".equals(view) && !overdue) {
                 continue;
             }
+            if ("completed".equals(view) && !"completed".equals(enrollment.getStatus())) {
+                continue;
+            }
             if ("current".equals(view) && (overdue || !"approved".equals(enrollment.getStatus()))) {
                 continue;
             }

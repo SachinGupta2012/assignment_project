@@ -5,7 +5,6 @@ public class RegisterRequest {
     private String password;
     private String firstName;
     private String lastName;
-    private String role;   
 
     public RegisterRequest() {}
 
@@ -21,6 +20,4 @@ public class RegisterRequest {
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
 }

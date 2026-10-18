@@ -3,6 +3,7 @@ public class CourseResponse{
     private final Long id;
     private final String title;
     private final String description;
+    private final Long instructorId;
     private final String instructorName;
     private final boolean isPublished;
     private final Integer estimatedDuration;
@@ -10,10 +11,11 @@ public class CourseResponse{
     private final String enrollmentMode;
     private final Boolean isArchived;
     private final String tags;
-    public CourseResponse(Long id, String title, String description, String instructorName, boolean isPublished, Integer estimatedDuration, String level, String enrollmentMode, Boolean isArchived, String tags){
+    public CourseResponse(Long id, String title, String description, Long instructorId, String instructorName, boolean isPublished, Integer estimatedDuration, String level, String enrollmentMode, Boolean isArchived, String tags){
         this.id = id;
         this.title = title;
         this.description = description;
+        this.instructorId = instructorId;
         this.instructorName = instructorName;
         this.isPublished= isPublished;
         this.estimatedDuration= estimatedDuration;
@@ -25,6 +27,7 @@ public class CourseResponse{
     public Long getId(){return id;}
     public String getTitle(){return title;}
     public String getDescription(){return description;}
+    public Long getInstructorId(){return instructorId;}
     public String getInstructorName(){return instructorName;}
     public boolean getIsPublished(){return isPublished;}
     public Integer getEstimatedDuration(){return estimatedDuration;}

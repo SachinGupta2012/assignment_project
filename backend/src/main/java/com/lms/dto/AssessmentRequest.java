@@ -1,13 +1,9 @@
 package com.lms.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class AssessmentRequest {
-
-    @NotNull(message = "courseId must not be blank")
-    private Long courseId;
 
     private Long moduleId;
 
@@ -23,8 +19,6 @@ public class AssessmentRequest {
 
     public AssessmentRequest() {}
 
-    public Long getCourseId() { return courseId; }
-    public void setCourseId(Long courseId) { this.courseId = courseId; }
     public Long getModuleId() { return moduleId; }
     public void setModuleId(Long moduleId) { this.moduleId = moduleId; }
     public String getTitle() { return title; }

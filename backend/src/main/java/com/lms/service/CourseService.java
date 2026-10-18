@@ -56,6 +56,7 @@ public class CourseService {
         course.setEnrollmentMode(request.getEnrollmentMode());
         course.setInstructor(instructor);
         course.setEstimatedDuration(request.getEstimateDuration());
+        course.setTags(request.getTags());
         course.setCreatedBy(currentUser);    
         course.setUpdatedBy(currentUser);
 
@@ -76,7 +77,10 @@ public class CourseService {
     // GET /api/courses/search?title=&level=&instructorId=&published=&archived=&tag=
     @Transactional(readOnly = true)
     public Page<CourseResponse> search(String title, String level, Long instructorId,Boolean published, Boolean archived, String tag, Pageable pageable) {
-        
+        if (hasRole("ROLE_LEARNER")) {
+            published = true;
+            archived = false;
+        }
         // typed strings instead of untyped nulls
         String titlePattern = title == null ? "%" : "%" + title.toLowerCase() + "%";
         String tagPattern = tag == null ? "%" : "%" + tag.toLowerCase() + "%";
@@ -104,6 +108,7 @@ public class CourseService {
                 course.getId(),
                 course.getTitle(),
                 course.getDescription(),
+                course.getInstructor().getId(),
                 instructorName,
                 course.getIsPublished(),
                 course.getEstimatedDuration(),
@@ -125,6 +130,7 @@ public class CourseService {
         course.setLevel(request.getLevel());
         course.setEnrollmentMode(request.getEnrollmentMode());
         course.setEstimatedDuration(request.getEstimateDuration());
+        course.setTags(request.getTags());
         course.setUpdatedBy(getCurrentUserForUpdate());
         return toResponse(courseRepository.save(course));
     }

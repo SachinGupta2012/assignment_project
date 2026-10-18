@@ -27,19 +27,22 @@ public class GradingService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final ActivityService activityService;
+    private final ProgressService progressService;
 
     public GradingService(AttemptAnswerRepository answerRepository,
                           AssessmentAttemptRepository attemptRepository,
                           GradeCorrectionRepository correctionRepository,
                           UserRepository userRepository,
                           NotificationService notificationService,
-                          ActivityService activityService) {
+                          ActivityService activityService,
+                          ProgressService progressService) {
         this.answerRepository = answerRepository;
         this.attemptRepository = attemptRepository;
         this.correctionRepository = correctionRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.activityService = activityService;
+        this.progressService = progressService;
     }
 
     // GET /api/grading/queue
@@ -63,6 +66,10 @@ public class GradingService {
         AttemptAnswer answer = answerRepository.findById(answerId)
                 .orElseThrow(() -> new RuntimeException("Answer not found: " + answerId));
 
+        if (points.compareTo(BigDecimal.ZERO) < 0 || points.compareTo(answer.getPoints()) > 0) {
+            throw new RuntimeException("Points must be between 0 and " + answer.getPoints());
+        }
+
         if (answer.getGradedBy() != null && answer.getPointsAwarded().compareTo(points) != 0) {
             if (reason == null || reason.isBlank()) {
                 throw new RuntimeException("A reason is required to change an existing grade");
@@ -84,6 +91,11 @@ public class GradingService {
 
         AssessmentAttempt attempt = answer.getAttempt();
         recompute(attempt);
+        if ("graded".equals(attempt.getStatus())) {
+            progressService.refreshEnrollmentStatus(
+                    attempt.getAssessment().getCourse().getId(),
+                    attempt.getLearner().getId());
+        }
 
         notificationService.create(attempt.getLearner(), "RESULT",
                 "Result updated: " + attempt.getAssessment().getTitle(),
@@ -132,12 +144,14 @@ public class GradingService {
     }
 
     private AttemptAnswerResponse toResponse(AttemptAnswer a) {
+        Long selectedOptionId = a.getSelectedOption() == null ? null : a.getSelectedOption().getId();
         return new AttemptAnswerResponse(
                 a.getId(),
                 a.getAttempt().getId(),
                 a.getQuestion().getId(),
                 a.getQuestionText(),
                 a.getAnswerText(),
+                selectedOptionId,
                 a.getSelectedOptionText(),
                 a.getPoints(),
                 a.getPointsAwarded(),

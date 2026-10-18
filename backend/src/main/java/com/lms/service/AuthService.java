@@ -46,12 +46,9 @@ public class AuthService {
         user.setLastName(request.getLastName());
         user.setIsActive(true); // new accounts start active; admin can deactivate later
 
-        // Assign role
-        String roleName = (request.getRole() == null || request.getRole().isBlank())
-                ? "LEARNER"
-                : request.getRole().toUpperCase();
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RuntimeException("Invalid role: " + roleName));
+        // Public registration always creates a learner account
+        Role role = roleRepository.findByName("LEARNER")
+                .orElseThrow(() -> new RuntimeException("Learner role not found"));
         user.getRoles().add(role);
 
         userRepository.save(user);

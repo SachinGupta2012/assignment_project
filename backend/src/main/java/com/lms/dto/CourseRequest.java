@@ -17,6 +17,7 @@ public class CourseRequest{
     private String level;
     @NotNull(message="Enrollment mode can not be blank")
     private String enrollmentMode;
+    private String tags;
 
     
     public CourseRequest(){}
@@ -34,6 +35,8 @@ public class CourseRequest{
     public void setLevel(String level){this.level=level;}
     public String getEnrollmentMode(){return enrollmentMode;}
     public void setEnrollmentMode(String enrollmentMode){this.enrollmentMode=enrollmentMode;}
+    public String getTags(){return tags;}
+    public void setTags(String tags){this.tags=tags;}
 
 
 }

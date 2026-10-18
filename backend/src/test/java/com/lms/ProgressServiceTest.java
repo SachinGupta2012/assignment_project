@@ -87,7 +87,7 @@ public class ProgressServiceTest {
         Long moduleId = moduleService.create(courseId, moduleRequest).getId();
 
         Long firstLessonId = createLesson(courseId, moduleId, "L1", 1);
-        createLesson(courseId, moduleId, "L2", 2);
+        Long secondLessonId = createLesson(courseId, moduleId, "L2", 2);
 
         loginAs("priya.sharma@lms.com", "ROLE_TRAINING_MANAGER");
         EnrollmentRequest enrollRequest = new EnrollmentRequest();
@@ -102,5 +102,8 @@ public class ProgressServiceTest {
 
         assertEquals(50, progressService.getProgress(courseId, null).getPercentage());
         assertEquals("L2", progressService.resume(courseId).getTitle());
+
+        progressService.completeLesson(secondLessonId);
+        assertEquals("completed", enrollmentService.myEnrollments("completed").get(0).getStatus());
     }
 }

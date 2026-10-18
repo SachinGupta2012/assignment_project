@@ -75,7 +75,6 @@ public class GradingServiceTest {
         Long courseId = courseService.create(courseRequest).getId();
 
         AssessmentRequest quizRequest = new AssessmentRequest();
-        quizRequest.setCourseId(courseId);
         quizRequest.setTitle("Q Short");
         quizRequest.setPassingScore(60);
         quizRequest.setMaxAttempts(3);
@@ -113,6 +112,8 @@ public class GradingServiceTest {
 
         var graded = gradingService.gradeAnswer(answerId, new BigDecimal("5"), "Correct", null);
         assertEquals(new BigDecimal("5"), graded.getPointsAwarded());
+        assertThrows(RuntimeException.class,
+                () -> gradingService.gradeAnswer(answerId, new BigDecimal("6"), null, "Too high"));
 
         assertThrows(RuntimeException.class,
                 () -> gradingService.gradeAnswer(answerId, new BigDecimal("4"), null, null));

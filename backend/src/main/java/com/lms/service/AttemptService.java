@@ -4,12 +4,15 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lms.dto.AttemptAnswerResponse;
 import com.lms.dto.AttemptResponse;
 import com.lms.dto.AttemptSubmitRequest;
 import com.lms.entity.Assessment;
@@ -37,6 +40,7 @@ public class AttemptService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final ActivityService activityService;
+    private final ProgressService progressService;
 
     public AttemptService(AssessmentAttemptRepository attemptRepository,
                           AttemptAnswerRepository answerRepository,
@@ -45,7 +49,8 @@ public class AttemptService {
                           EnrollmentRepository enrollmentRepository,
                           UserRepository userRepository,
                           NotificationService notificationService,
-                          ActivityService activityService) {
+                          ActivityService activityService,
+                          ProgressService progressService) {
         this.attemptRepository = attemptRepository;
         this.answerRepository = answerRepository;
         this.assessmentRepository = assessmentRepository;
@@ -54,6 +59,7 @@ public class AttemptService {
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.activityService = activityService;
+        this.progressService = progressService;
     }
 
     // POST /api/assessments/{assessmentId}/attempts
@@ -98,6 +104,20 @@ public class AttemptService {
         return out;
     }
 
+    // GET /api/attempts/{attemptId}/answers
+    @Transactional(readOnly = true)
+    public List<AttemptAnswerResponse> getAnswers(Long attemptId) {
+        AssessmentAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new RuntimeException("Attempt not found: " + attemptId));
+        User me = getCurrentUser();
+        if (!attempt.getLearner().getId().equals(me.getId()) && !hasRole("ROLE_ADMIN")) {
+            throw new RuntimeException("You can only view your own attempt");
+        }
+        return answerRepository.findByAttemptId(attemptId).stream()
+                .map(this::toAnswerResponse)
+                .toList();
+    }
+
     // PATCH /api/attempts/{attemptId}/answers (save draft, attempt stays in_progress)
     @Transactional
     public AttemptResponse saveDraft(Long attemptId, AttemptSubmitRequest request) {
@@ -115,8 +135,12 @@ public class AttemptService {
 
         Assessment assessment = attempt.getAssessment();
         List<AttemptAnswer> rows = new ArrayList<>();
+        Set<Long> savedQuestions = new HashSet<>();
 
         for (AttemptSubmitRequest.AnswerItem item : request.getAnswers()) {
+            if (!savedQuestions.add(item.getQuestionId())) {
+                throw new RuntimeException("Question " + item.getQuestionId() + " was answered more than once");
+            }
             Question question = questionRepository.findById(item.getQuestionId())
                     .orElseThrow(() -> new RuntimeException("Question not found: " + item.getQuestionId()));
             if (!question.getAssessment().getId().equals(assessment.getId())) {
@@ -135,6 +159,9 @@ public class AttemptService {
             } else if ("multiple_choice".equals(type)) {
                 List<Long> picked = item.getSelectedOptionIds() == null
                         ? new ArrayList<>() : item.getSelectedOptionIds();
+                if (new HashSet<>(picked).size() != picked.size()) {
+                    throw new RuntimeException("The same option cannot be selected more than once");
+                }
                 for (Long optionId : picked) {
                     QuestionOption option = findOption(question, optionId);
                     AttemptAnswer row = new AttemptAnswer();
@@ -186,17 +213,20 @@ public class AttemptService {
         }
 
         BigDecimal totalScore = BigDecimal.ZERO;
-        BigDecimal totalMax = BigDecimal.ZERO;
+        BigDecimal totalMax = assessment.getMaxScore();
         boolean hasShortAnswer = false;
         List<AttemptAnswer> rows = new ArrayList<>();
+        Set<Long> answeredQuestions = new HashSet<>();
 
         for (AttemptSubmitRequest.AnswerItem item : request.getAnswers()) {
+            if (!answeredQuestions.add(item.getQuestionId())) {
+                throw new RuntimeException("Question " + item.getQuestionId() + " was answered more than once");
+            }
             Question question = questionRepository.findById(item.getQuestionId())
                     .orElseThrow(() -> new RuntimeException("Question not found: " + item.getQuestionId()));
             if (!question.getAssessment().getId().equals(assessment.getId())) {
                 throw new RuntimeException("Question " + question.getId() + " does not belong to this assessment");
             }
-            totalMax = totalMax.add(question.getPoints());
             String type = question.getQuestionType();
 
             if ("short_answer".equals(type)) {
@@ -213,6 +243,9 @@ public class AttemptService {
             } else if ("multiple_choice".equals(type)) {
                 List<Long> picked = item.getSelectedOptionIds() == null
                         ? new ArrayList<>() : item.getSelectedOptionIds();
+                if (new HashSet<>(picked).size() != picked.size()) {
+                    throw new RuntimeException("The same option cannot be selected more than once");
+                }
                 boolean exact = ScoringUtil.isExactMatch(question, picked);
                 BigDecimal share = BigDecimal.ZERO;
                 if (exact && !picked.isEmpty()) {
@@ -279,6 +312,10 @@ public class AttemptService {
                 me.getFirstName() + " " + me.getLastName() + " submitted attempt " + saved.getAttemptNumber());
 
         activityService.record(me, "ATTEMPT_SUBMITTED", "attempt", saved.getId());
+
+        if ("graded".equals(saved.getStatus())) {
+            progressService.refreshEnrollmentStatus(assessment.getCourse().getId(), me.getId());
+        }
 
         return toResponse(saved);
     }
@@ -367,6 +404,22 @@ public class AttemptService {
                 a.getPassed(),
                 a.getStartedAt(),
                 a.getSubmittedAt()
+        );
+    }
+
+    private AttemptAnswerResponse toAnswerResponse(AttemptAnswer a) {
+        Long selectedOptionId = a.getSelectedOption() == null ? null : a.getSelectedOption().getId();
+        return new AttemptAnswerResponse(
+                a.getId(),
+                a.getAttempt().getId(),
+                a.getQuestion().getId(),
+                a.getQuestionText(),
+                a.getAnswerText(),
+                selectedOptionId,
+                a.getSelectedOptionText(),
+                a.getPoints(),
+                a.getPointsAwarded(),
+                a.getFeedback()
         );
     }
 }

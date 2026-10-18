@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/attempts/{attemptId}/submit").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/attempts/{attemptId}/answers").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/assessments/{assessmentId}/attempts/me").hasAnyRole("LEARNER", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/attempts/{attemptId}/answers").hasAnyRole("LEARNER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/grading/queue").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/grading/answers/{answerId}").hasAnyRole("ADMIN", "INSTRUCTOR")
                 .requestMatchers(HttpMethod.POST, "/api/lessons/{lessonId}/complete").hasAnyRole("LEARNER", "ADMIN")
@@ -77,7 +78,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization","Content-Type"));
         config.setAllowCredentials(true);
 

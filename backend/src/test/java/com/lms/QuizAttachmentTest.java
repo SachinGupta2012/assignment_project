@@ -73,7 +73,6 @@ public class QuizAttachmentTest {
 
     private AssessmentRequest quizRequest(Long courseId, Long moduleId) {
         AssessmentRequest request = new AssessmentRequest();
-        request.setCourseId(courseId);
         request.setModuleId(moduleId);
         request.setTitle("Quiz");
         request.setPassingScore(60);

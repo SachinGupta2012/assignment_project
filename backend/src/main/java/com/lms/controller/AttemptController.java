@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.lms.dto.AttemptResponse;
+import com.lms.dto.AttemptAnswerResponse;
 import com.lms.dto.AttemptSubmitRequest;
 import com.lms.service.AttemptService;
 
@@ -48,5 +49,10 @@ public class AttemptController {
     @GetMapping("/assessments/{assessmentId}/attempts/me")
     public ResponseEntity<List<AttemptResponse>> myAttempts(@PathVariable Long assessmentId) {
         return ResponseEntity.ok(attemptService.myAttempts(assessmentId));
+    }
+
+    @GetMapping("/attempts/{attemptId}/answers")
+    public ResponseEntity<List<AttemptAnswerResponse>> getAnswers(@PathVariable Long attemptId) {
+        return ResponseEntity.ok(attemptService.getAnswers(attemptId));
     }
 }

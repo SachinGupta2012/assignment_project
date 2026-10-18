@@ -24,8 +24,8 @@ import com.lms.service.CourseService;
 import com.lms.service.EnrollmentService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @Transactional
@@ -70,7 +70,6 @@ public class AttemptServiceTest {
         Long courseId = courseService.create(courseRequest).getId();
 
         AssessmentRequest quizRequest = new AssessmentRequest();
-        quizRequest.setCourseId(courseId);
         quizRequest.setTitle("Q1");
         quizRequest.setPassingScore(60);
         quizRequest.setMaxAttempts(1);
@@ -95,6 +94,13 @@ public class AttemptServiceTest {
             }
         }
 
+        QuestionRequest secondQuestion = new QuestionRequest();
+        secondQuestion.setQuestionText("3+3?");
+        secondQuestion.setQuestionType("single_choice");
+        secondQuestion.setPoints(new BigDecimal("10"));
+        secondQuestion.setOptions(List.of(correct, wrong));
+        assessmentService.addQuestion(quizId, secondQuestion);
+
         loginAs("priya.sharma@lms.com", "ROLE_TRAINING_MANAGER");
         EnrollmentRequest enrollRequest = new EnrollmentRequest();
         enrollRequest.setLearnerId(userId("ananya.iyer@lms.com"));
@@ -112,7 +118,10 @@ public class AttemptServiceTest {
 
         var graded = attemptService.submit(attempt.getId(), submit);
         assertEquals("graded", graded.getStatus());
-        assertTrue(graded.getPassed());
+        assertEquals(new BigDecimal("20"), graded.getMaxScore());
+        assertEquals(new BigDecimal("50.00"), graded.getPercentage());
+        assertFalse(graded.getPassed());
+        assertEquals(correctOptionId, attemptService.getAnswers(attempt.getId()).get(0).getSelectedOptionId());
 
         assertThrows(RuntimeException.class, () -> attemptService.start(quizId));
     }
