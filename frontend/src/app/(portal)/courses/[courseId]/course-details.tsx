@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CourseFormFields, type CourseFormValues } from "@/components/course/course-form-fields";
 import { Button } from "@/components/ui/button";
@@ -13,9 +14,10 @@ import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/api";
 import { getCourseContent, type ModuleWithLessons } from "@/lib/courses";
 import { hasPermission } from "@/lib/permissions";
-import type { Assessment, Course, Enrollment, PageResponse } from "@/types/api";
+import type { Assessment, Course, Enrollment, Lesson, PageResponse } from "@/types/api";
 
 export function CourseDetails({ courseId }: { courseId: number }) {
+  const router = useRouter();
   const { user } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<ModuleWithLessons[]>([]);
@@ -54,7 +56,6 @@ export function CourseDetails({ courseId }: { courseId: number }) {
     void load();
   }, [courseId, user?.role]);
 
-  const firstLesson = useMemo(() => modules.flatMap((module) => module.lessons)[0], [modules]);
   const canManage = hasPermission(user?.role, "course.manage");
   const canEnroll = hasPermission(user?.role, "course.enroll");
   const canAttempt = hasPermission(user?.role, "assessment.attempt");
@@ -68,6 +69,22 @@ export function CourseDetails({ courseId }: { courseId: number }) {
       setSuccess("Enrollment successful. You can start the course now.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not enroll in this course.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueLearning() {
+    setBusy(true);
+    setError("");
+    try {
+      const lesson = await apiFetch<Lesson>(`/api/courses/${courseId}/resume`);
+      router.push(`/courses/${courseId}/lessons/${lesson.id}`);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "Could not resume this course.";
+      setError(message.includes("All required lessons are complete")
+        ? "All required lessons are complete. Continue with a required assessment below."
+        : message);
     } finally {
       setBusy(false);
     }
@@ -152,7 +169,7 @@ export function CourseDetails({ courseId }: { courseId: number }) {
 
   const selfEnrollmentAllowed = course.enrollmentMode === "self_enroll" || course.enrollmentMode === "open";
   const learnerAction = enrolled ? (
-    firstLesson ? <Link href={`/courses/${courseId}/lessons/${firstLesson.id}`} className="button button-primary">Continue learning</Link> : null
+    <Button onClick={continueLearning} disabled={busy}>{busy ? "Loading..." : "Continue learning"}</Button>
   ) : selfEnrollmentAllowed ? <Button onClick={enroll} disabled={busy}>{busy ? "Enrolling..." : "Enroll now"}</Button> : <Button variant="secondary" disabled>Manager assignment required</Button>;
 
   return (

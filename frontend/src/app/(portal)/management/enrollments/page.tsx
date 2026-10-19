@@ -7,6 +7,7 @@ import { EmptyState, LoadingState } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/form-field";
 import { Icon } from "@/components/ui/icon";
 import { Modal } from "@/components/ui/modal";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch, queryString } from "@/lib/api";
@@ -129,6 +130,22 @@ export default function EnrollmentManagementPage() {
     }
   }
 
+  async function removeEnrollment(item: Enrollment) {
+    if (!window.confirm(`Remove ${item.learnerName} from this course? Their course access will be revoked.`)) return;
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      await apiFetch(`/api/enrollments/${item.id}`, { method: "DELETE" });
+      setEnrollments((current) => current.filter((enrollment) => enrollment.id !== item.id));
+      setSuccess("Enrollment removed and course access revoked.");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not remove enrollment.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function exportCsv() {
     setError("");
     try {
@@ -171,16 +188,16 @@ export default function EnrollmentManagementPage() {
         {enrollmentsLoading ? <LoadingState label="Loading enrollments..." /> : visibleEnrollments.length === 0 ? <EmptyState title="No enrollments found" message="Change the filters or assign a learner to this course." /> : (
           <div className="table-wrap">
             <table className="data-table enrollment-table">
-              <thead><tr><th>Learner</th><th>Course</th><th>Enrolled</th><th>Due date</th><th>Status</th><th>Access</th></tr></thead>
+              <thead><tr><th>Learner</th><th>Course</th><th>Enrolled</th><th>Due date</th><th>Status</th><th>Access</th><th>Action</th></tr></thead>
               <tbody>{visibleEnrollments.map((item) => {
                 const overdue = isOverdue(item);
-                return <tr key={item.id}><td><strong>{item.learnerName}</strong><p>ID: {item.learnerId}</p></td><td>{selectedCourse?.title}</td><td>{formatDate(item.enrolledAt)}</td><td>{item.dueDate ? <span className={overdue ? "overdue-text" : ""}>{formatDate(item.dueDate)}{overdue ? " · Overdue" : ""}</span> : <span className="muted-text">No due date</span>}</td><td><Badge tone={item.status === "approved" || item.status === "completed" ? "green" : item.status === "pending" ? "amber" : "neutral"}>{item.status}</Badge></td><td>{item.status === "completed" ? <span className="muted-text">Read only</span> : <Select value={item.status} onChange={(event) => updateStatus(item.id, event.target.value)} aria-label={`Access for ${item.learnerName}`}><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></Select>}</td></tr>;
+                return <tr key={item.id}><td><strong>{item.learnerName}</strong><p>ID: {item.learnerId}</p></td><td>{selectedCourse?.title}</td><td>{formatDate(item.enrolledAt)}</td><td>{item.dueDate ? <span className={overdue ? "overdue-text" : ""}>{formatDate(item.dueDate)}{overdue ? " · Overdue" : ""}</span> : <span className="muted-text">No due date</span>}</td><td><Badge tone={item.status === "approved" || item.status === "completed" ? "green" : item.status === "pending" ? "amber" : "neutral"}>{item.status}</Badge></td><td>{item.status === "completed" ? <span className="muted-text">Read only</span> : <Select value={item.status} onChange={(event) => updateStatus(item.id, event.target.value)} aria-label={`Access for ${item.learnerName}`}><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></Select>}</td><td><Button variant="danger" className="button-small" disabled={busy} onClick={() => removeEnrollment(item)}>Remove</Button></td></tr>;
               })}</tbody>
             </table>
           </div>
         )}
 
-        {filteredEnrollments.length > PAGE_SIZE ? <div className="pagination"><Button variant="secondary" className="button-small" disabled={currentPage === 1} onClick={() => setPage((current) => current - 1)}>Previous</Button><span>Page {currentPage} of {pageCount}</span><Button variant="secondary" className="button-small" disabled={currentPage === pageCount} onClick={() => setPage((current) => current + 1)}>Next</Button></div> : null}
+        <Pagination page={currentPage} totalPages={pageCount} onPageChange={setPage} />
       </section>
 
       <Modal open={modalOpen} title="Assign learner" onClose={() => setModalOpen(false)}>

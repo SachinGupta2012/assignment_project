@@ -3,6 +3,8 @@ package com.lms.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -14,12 +16,14 @@ public class QuestionRequest {
     private String questionType = "single_choice";
 
     @NotNull(message = "points must not be blank")
+    @DecimalMin(value = "0.01", message = "points must be greater than 0")
     private BigDecimal points;
 
     private String correctAnswer;
     private String explanation;
     private Integer displayOrder = 1;
 
+    @Valid
     private List<OptionItem> options;
 
     public static class OptionItem {

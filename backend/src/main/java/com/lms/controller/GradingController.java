@@ -28,6 +28,11 @@ public class GradingController {
         return ResponseEntity.ok(gradingService.queue());
     }
 
+    @GetMapping("/graded")
+    public ResponseEntity<List<AttemptAnswerResponse>> graded() {
+        return ResponseEntity.ok(gradingService.graded());
+    }
+
     @PatchMapping("/answers/{answerId}")
     public ResponseEntity<AttemptAnswerResponse> gradeAnswer(@PathVariable Long answerId,
                                                              @RequestParam BigDecimal points,

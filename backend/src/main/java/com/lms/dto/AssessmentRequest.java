@@ -1,6 +1,9 @@
 package com.lms.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class AssessmentRequest {
@@ -12,8 +15,16 @@ public class AssessmentRequest {
     private String title;
 
     private String description;
+    @NotNull(message = "passingScore must not be blank")
+    @Min(value = 0, message = "passingScore must be at least 0")
+    @Max(value = 100, message = "passingScore must be at most 100")
     private Integer passingScore = 60;
+
+    @Min(value = 1, message = "timeLimitMinutes must be at least 1")
     private Integer timeLimitMinutes;
+
+    @NotNull(message = "maxAttempts must not be blank")
+    @Min(value = 1, message = "maxAttempts must be at least 1")
     private Integer maxAttempts = 3;
     private Integer displayOrder;
 

@@ -140,6 +140,8 @@ public class CourseService {
     public CourseResponse updateStatus(Long id, Boolean published, Boolean archived) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Course not found: " + id));
+        boolean wasPublished = Boolean.TRUE.equals(course.getIsPublished());
+        boolean wasArchived = Boolean.TRUE.equals(course.getIsArchived());
         if (published != null) {
             course.setIsPublished(published);
         }
@@ -148,7 +150,16 @@ public class CourseService {
         }
         course.setUpdatedBy(getCurrentUserForUpdate());
         Course saved = courseRepository.save(course);
-        activityService.record(saved.getUpdatedBy(), "COURSE_STATUS_CHANGED", "course", saved.getId());
+        boolean isPublished = Boolean.TRUE.equals(saved.getIsPublished());
+        boolean isArchived = Boolean.TRUE.equals(saved.getIsArchived());
+        if (wasPublished != isPublished) {
+            activityService.record(saved.getUpdatedBy(),
+                    isPublished ? "COURSE_PUBLISHED" : "COURSE_UNPUBLISHED", "course", saved.getId());
+        }
+        if (wasArchived != isArchived) {
+            activityService.record(saved.getUpdatedBy(),
+                    isArchived ? "COURSE_ARCHIVED" : "COURSE_RESTORED", "course", saved.getId());
+        }
         return toResponse(saved);
     }
 

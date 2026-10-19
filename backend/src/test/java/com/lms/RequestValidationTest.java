@@ -1,11 +1,13 @@
 package com.lms;
 
 import java.util.Set;
+import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
 import com.lms.dto.AssessmentRequest;
 import com.lms.dto.CourseRequest;
+import com.lms.dto.QuestionRequest;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -38,5 +40,29 @@ public class RequestValidationTest {
         AssessmentRequest request = new AssessmentRequest();
         Set<ConstraintViolation<AssessmentRequest>> violations = validator.validate(request);
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("title")));
+    }
+
+    @Test
+    public void assessmentLimitsMustBeValid() {
+        AssessmentRequest request = new AssessmentRequest();
+        request.setTitle("Quiz");
+        request.setPassingScore(101);
+        request.setMaxAttempts(0);
+        request.setTimeLimitMinutes(0);
+
+        Set<ConstraintViolation<AssessmentRequest>> violations = validator.validate(request);
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("passingScore")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxAttempts")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("timeLimitMinutes")));
+    }
+
+    @Test
+    public void questionPointsMustBePositive() {
+        QuestionRequest request = new QuestionRequest();
+        request.setQuestionText("Question");
+        request.setPoints(BigDecimal.ZERO);
+
+        Set<ConstraintViolation<QuestionRequest>> violations = validator.validate(request);
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("points")));
     }
 }

@@ -170,6 +170,21 @@ public class EnrollmentService {
         return toResponse(enrollment);
     }
 
+    @Transactional
+    public void remove(Long enrollmentId) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found: " + enrollmentId));
+        User actor = getCurrentUser();
+        User learner = enrollment.getUser();
+        String courseTitle = enrollment.getCourse().getTitle();
+
+        activityService.record(actor, "ENROLLMENT_REMOVED", "enrollment", enrollmentId);
+        enrollmentRepository.delete(enrollment);
+        notificationService.create(learner, "ENROLLMENT",
+                "Enrollment removed: " + courseTitle,
+                "Your access to this course has been removed.");
+    }
+
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)

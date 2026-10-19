@@ -120,17 +120,20 @@ public class ProgressService {
                 .orElseThrow(() -> new RuntimeException("Learner not found: " + learnerId));
         Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(learnerId, courseId)
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+        User actor = getCurrentUser();
         ProgressResponse progress = calculateProgress(course, learner);
         if (progress.getPercentage() == 100 && "approved".equals(enrollment.getStatus())) {
             enrollment.setStatus("completed");
             enrollment.setCompletedAt(LocalDateTime.now());
-            enrollment.setUpdatedBy(learner);
+            enrollment.setUpdatedBy(actor);
             enrollmentRepository.save(enrollment);
+            activityService.record(actor, "COURSE_COMPLETED", "course", courseId);
         } else if (progress.getPercentage() < 100 && "completed".equals(enrollment.getStatus())) {
             enrollment.setStatus("approved");
             enrollment.setCompletedAt(null);
-            enrollment.setUpdatedBy(learner);
+            enrollment.setUpdatedBy(actor);
             enrollmentRepository.save(enrollment);
+            activityService.record(actor, "COURSE_COMPLETION_REVOKED", "course", courseId);
         }
     }
 

@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/display";
 import { ErrorBanner, LoadingState } from "@/components/ui/feedback";
 import { Icon } from "@/components/ui/icon";
 import { Textarea } from "@/components/ui/form-field";
-import { ToastMessage } from "@/components/ui/toast";
+import { ToastMessage, useToast } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/api";
-import type { AnswerItem, Assessment, Attempt, PageResponse, Question } from "@/types/api";
+import type { AnswerItem, Assessment, Attempt, AttemptAnswer, PageResponse, Question } from "@/types/api";
 
 export function AssessmentView({ courseId, assessmentId }: { courseId: number; assessmentId: number }) {
   return <RoleGuard permission="assessment.attempt"><AssessmentContent courseId={courseId} assessmentId={assessmentId} /></RoleGuard>;
@@ -19,6 +19,7 @@ export function AssessmentView({ courseId, assessmentId }: { courseId: number; a
 
 function AssessmentContent({ courseId, assessmentId }: { courseId: number; assessmentId: number }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
@@ -42,7 +43,11 @@ function AssessmentContent({ courseId, assessmentId }: { courseId: number; asses
         setQuestions([...questionData].sort((a, b) => a.displayOrder - b.displayOrder));
         setAttempts(attemptData);
         const openAttempt = attemptData.find((item) => item.status === "in_progress");
-        if (openAttempt) setAttempt(openAttempt);
+        if (openAttempt) {
+          const savedAnswers = await apiFetch<AttemptAnswer[]>(`/api/attempts/${openAttempt.id}/answers`);
+          setAttempt(openAttempt);
+          setAnswers(restoreAnswers(savedAnswers, questionData));
+        }
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Could not load this assessment.");
       } finally {
@@ -56,11 +61,21 @@ function AssessmentContent({ courseId, assessmentId }: { courseId: number; asses
     if (!attempt || !assessment?.timeLimitMinutes) return;
     const startedAt = new Date(attempt.startedAt).getTime();
     const deadline = startedAt + assessment.timeLimitMinutes * 60_000;
-    const update = () => setSecondsLeft(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
+    const update = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0) {
+        setAttempts((current) => current.map((item) => item.id === attempt.id ? { ...item, status: "expired" } : item));
+        setAttempt(null);
+        setAnswers({});
+        setCurrentIndex(0);
+        showToast("Time expired. Start a new attempt if you have attempts remaining.", "warning");
+      }
+    };
     update();
     const interval = window.setInterval(update, 1000);
     return () => window.clearInterval(interval);
-  }, [assessment, attempt]);
+  }, [assessment, attempt, showToast]);
 
   const currentQuestion = questions[currentIndex];
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
@@ -73,6 +88,8 @@ function AssessmentContent({ courseId, assessmentId }: { courseId: number; asses
       const started = await apiFetch<Attempt>(`/api/assessments/${assessmentId}/attempts`, { method: "POST" });
       setAttempt(started);
       setAttempts((current) => [...current, started]);
+      setAnswers({});
+      setCurrentIndex(0);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not start the assessment.");
     } finally {
@@ -99,6 +116,26 @@ function AssessmentContent({ courseId, assessmentId }: { courseId: number; asses
 
   function setTextAnswer(questionId: number, answerText: string) {
     setAnswers((current) => ({ ...current, [questionId]: { questionId, answerText } }));
+  }
+
+  async function saveProgress() {
+    if (!attempt || answeredCount === 0) {
+      setError("Answer at least one question before saving.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await apiFetch<Attempt>(`/api/attempts/${attempt.id}/answers`, {
+        method: "PATCH",
+        body: JSON.stringify({ answers: Object.values(answers) }),
+      });
+      showToast("Assessment progress saved.", "success");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not save assessment progress.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submit() {
@@ -171,10 +208,32 @@ function AssessmentContent({ courseId, assessmentId }: { courseId: number; asses
       <div className="assessment-actions">
         <Button variant="secondary" disabled={currentIndex === 0} onClick={() => setCurrentIndex((index) => index - 1)}><Icon name="chevronLeft" size={17} />Previous</Button>
         <span>{answeredCount} of {questions.length} answered</span>
-        {currentIndex < questions.length - 1 ? <Button onClick={() => setCurrentIndex((index) => index + 1)}>Next<Icon name="chevronRight" size={17} /></Button> : <Button onClick={submit} disabled={busy}>{busy ? "Submitting..." : "Submit assessment"}</Button>}
+        <div className="assessment-action-buttons">
+          <Button variant="secondary" onClick={saveProgress} disabled={busy || answeredCount === 0}>Save progress</Button>
+          {currentIndex < questions.length - 1 ? <Button onClick={() => setCurrentIndex((index) => index + 1)}>Next<Icon name="chevronRight" size={17} /></Button> : <Button onClick={submit} disabled={busy}>{busy ? "Submitting..." : "Submit assessment"}</Button>}
+        </div>
       </div>
     </div>
   );
+}
+
+function restoreAnswers(savedAnswers: AttemptAnswer[], questions: Question[]) {
+  const questionTypes = new Map(questions.map((question) => [question.id, question.questionType]));
+  const answers: Record<number, AnswerItem> = {};
+
+  for (const saved of savedAnswers) {
+    const type = questionTypes.get(saved.questionId);
+    if (type === "short_answer") {
+      answers[saved.questionId] = { questionId: saved.questionId, answerText: saved.answerText ?? "" };
+    } else if (type === "multiple_choice" && saved.selectedOptionId !== null) {
+      const selected = answers[saved.questionId]?.selectedOptionIds ?? [];
+      answers[saved.questionId] = { questionId: saved.questionId, selectedOptionIds: [...selected, saved.selectedOptionId] };
+    } else if (saved.selectedOptionId !== null) {
+      answers[saved.questionId] = { questionId: saved.questionId, selectedOptionId: saved.selectedOptionId };
+    }
+  }
+
+  return answers;
 }
 
 function formatTime(totalSeconds: number) {

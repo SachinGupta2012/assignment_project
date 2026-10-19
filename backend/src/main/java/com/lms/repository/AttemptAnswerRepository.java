@@ -17,4 +17,9 @@ public interface AttemptAnswerRepository extends JpaRepository<AttemptAnswer, Lo
          + "and a.gradedBy is null and a.attempt.assessment.createdBy.id = :instructorId "
          + "order by a.createdAt asc")
     List<AttemptAnswer> findPendingShortAnswers(@Param("instructorId") Long instructorId);
+
+    @Query("select a from AttemptAnswer a where a.question.questionType = 'short_answer' "
+         + "and a.gradedBy is not null and a.attempt.assessment.createdBy.id = :instructorId "
+         + "order by a.updatedAt desc")
+    List<AttemptAnswer> findGradedShortAnswers(@Param("instructorId") Long instructorId);
 }

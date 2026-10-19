@@ -114,7 +114,7 @@ export interface Attempt {
   status: string;
   score: number;
   maxScore: number;
-  percentage: number;
+  percentage: number | null;
   passed: boolean | null;
   startedAt: string;
   submittedAt: string | null;
@@ -123,6 +123,7 @@ export interface Attempt {
 export interface AttemptAnswer {
   id: number;
   attemptId: number;
+  attemptNumber: number;
   questionId: number;
   questionText: string;
   answerText: string | null;
@@ -156,6 +157,18 @@ export interface Notification {
   title: string;
   message: string;
   isRead: boolean;
+  createdAt: string;
+}
+
+export interface ActivityHistoryRecord {
+  id: number;
+  actorId: number | null;
+  actorName: string;
+  actorEmail: string | null;
+  actorRole: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: number | null;
   createdAt: string;
 }
 

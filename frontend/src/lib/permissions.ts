@@ -1,6 +1,7 @@
 import type { Role } from "@/types/api";
 
 export type Permission =
+  | "activity.read"
   | "assessment.attempt"
   | "content.manage"
   | "course.enroll"
@@ -17,7 +18,7 @@ export type Permission =
 
 const rolePermissions: Record<Role, Permission[]> = {
   ADMIN: [
-    "assessment.attempt", "content.manage", "course.enroll", "course.manage", "course.read",
+    "activity.read", "assessment.attempt", "content.manage", "course.enroll", "course.manage", "course.read",
     "enrollment.manage", "grading.manage", "lesson.complete", "myCourses.read", "notifications.read",
     "reports.read", "results.read", "users.manage",
   ],

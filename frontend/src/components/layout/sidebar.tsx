@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { href: "/management/enrollments", label: "Enrollments", icon: "user", permission: "enrollment.manage" },
   { href: "/management/reports", label: "Reports", icon: "results", permission: "reports.read" },
   { href: "/admin/users", label: "Users", icon: "user", permission: "users.manage" },
+  { href: "/admin/activity-history", label: "Activity History", icon: "clock", permission: "activity.read" },
   { href: "/notifications", label: "Notifications", icon: "book", permission: "notifications.read" },
 ];
 

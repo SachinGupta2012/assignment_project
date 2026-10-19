@@ -132,6 +132,7 @@ public class AttemptService {
         if (!"in_progress".equals(attempt.getStatus())) {
             throw new RuntimeException("Attempt already submitted — submitted responses cannot be edited");
         }
+        requireWithinTime(attempt);
 
         Assessment assessment = attempt.getAssessment();
         List<AttemptAnswer> rows = new ArrayList<>();
@@ -207,10 +208,7 @@ public class AttemptService {
         }
 
         Assessment assessment = attempt.getAssessment();
-        if (assessment.getTimeLimitMinutes() != null && attempt.getStartedAt()
-                .plusMinutes(assessment.getTimeLimitMinutes()).isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Time expired for this attempt — start a new attempt");
-        }
+        requireWithinTime(attempt);
 
         BigDecimal totalScore = BigDecimal.ZERO;
         BigDecimal totalMax = assessment.getMaxScore();
@@ -391,13 +389,30 @@ public class AttemptService {
                 .orElseThrow(() -> new RuntimeException("Logged-in user not found"));
     }
 
+    private boolean isExpired(AssessmentAttempt attempt) {
+        Integer limit = attempt.getAssessment().getTimeLimitMinutes();
+        if (limit == null) {
+            return false;
+        }
+        LocalDateTime deadline = attempt.getStartedAt().plusMinutes(limit);
+        return !deadline.isAfter(LocalDateTime.now());
+    }
+
+    private void requireWithinTime(AssessmentAttempt attempt) {
+        if (isExpired(attempt)) {
+            throw new RuntimeException("Time expired for this attempt — start a new attempt");
+        }
+    }
+
     private AttemptResponse toResponse(AssessmentAttempt a) {
+        String status = "in_progress".equals(a.getStatus()) && isExpired(a)
+                ? "expired" : a.getStatus();
         return new AttemptResponse(
                 a.getId(),
                 a.getAssessment().getId(),
                 a.getLearner().getId(),
                 a.getAttemptNumber(),
-                a.getStatus(),
+                status,
                 a.getScore(),
                 a.getMaxScore(),
                 a.getPercentage(),
@@ -412,6 +427,7 @@ public class AttemptService {
         return new AttemptAnswerResponse(
                 a.getId(),
                 a.getAttempt().getId(),
+                a.getAttempt().getAttemptNumber(),
                 a.getQuestion().getId(),
                 a.getQuestionText(),
                 a.getAnswerText(),

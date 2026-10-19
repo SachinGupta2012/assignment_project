@@ -57,6 +57,17 @@ public class GradingService {
         return out;
     }
 
+    @Transactional(readOnly = true)
+    public List<AttemptAnswerResponse> graded() {
+        User me = getCurrentUser();
+        List<AttemptAnswerResponse> out = new ArrayList<>();
+        List<AttemptAnswer> graded = answerRepository.findGradedShortAnswers(me.getId());
+        for (AttemptAnswer answer : graded) {
+            out.add(toResponse(answer));
+        }
+        return out;
+    }
+
     // PATCH /api/grading/answers/{answerId}?points=&feedback=&reason=
     @Transactional
     public AttemptAnswerResponse gradeAnswer(Long answerId, BigDecimal points, String feedback, String reason) {
@@ -65,12 +76,19 @@ public class GradingService {
 
         AttemptAnswer answer = answerRepository.findById(answerId)
                 .orElseThrow(() -> new RuntimeException("Answer not found: " + answerId));
+        if (!hasRole("ROLE_ADMIN")
+                && !answer.getAttempt().getAssessment().getCreatedBy().getId().equals(me.getId())) {
+            throw new RuntimeException("You can only grade answers from your own assessments");
+        }
 
         if (points.compareTo(BigDecimal.ZERO) < 0 || points.compareTo(answer.getPoints()) > 0) {
             throw new RuntimeException("Points must be between 0 and " + answer.getPoints());
         }
 
-        if (answer.getGradedBy() != null && answer.getPointsAwarded().compareTo(points) != 0) {
+        boolean gradeChanged = answer.getGradedBy() != null
+                && answer.getPointsAwarded().compareTo(points) != 0;
+        boolean wasAttemptGraded = "graded".equals(answer.getAttempt().getStatus());
+        if (gradeChanged) {
             if (reason == null || reason.isBlank()) {
                 throw new RuntimeException("A reason is required to change an existing grade");
             }
@@ -101,7 +119,13 @@ public class GradingService {
                 "Result updated: " + attempt.getAssessment().getTitle(),
                 "Your attempt " + attempt.getAttemptNumber() + " has been graded.");
 
-        activityService.record(me, "GRADE_PUBLISHED", "attempt", attempt.getId());
+        if (gradeChanged) {
+            activityService.record(me, "GRADE_CHANGED", "attempt_answer", answer.getId());
+        } else if (!wasAttemptGraded && "graded".equals(attempt.getStatus())) {
+            activityService.record(me, "GRADE_PUBLISHED", "attempt", attempt.getId());
+        } else {
+            activityService.record(me, "GRADE_ASSIGNED", "attempt_answer", answer.getId());
+        }
 
         return toResponse(answer);
     }
@@ -137,6 +161,16 @@ public class GradingService {
         throw new RuntimeException("Only instructors can grade answers");
     }
 
+    private boolean hasRole(String role) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        for (var authority : auth.getAuthorities()) {
+            if (role.equals(authority.getAuthority())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
@@ -148,6 +182,7 @@ public class GradingService {
         return new AttemptAnswerResponse(
                 a.getId(),
                 a.getAttempt().getId(),
+                a.getAttempt().getAttemptNumber(),
                 a.getQuestion().getId(),
                 a.getQuestionText(),
                 a.getAnswerText(),
