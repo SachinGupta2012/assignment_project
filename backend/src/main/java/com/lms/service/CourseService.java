@@ -156,7 +156,7 @@ public class CourseService {
         if (!Set.of("beginner", "intermediate", "advanced").contains(request.getLevel().toLowerCase())) {
             throw new RuntimeException("Invalid level:" + request.getLevel());
         }
-        if (!Set.of("open", "self_enroll", "instructor_approval").contains(request.getEnrollmentMode().toLowerCase())) {
+        if (!Set.of("open", "self_enroll", "instructor_approval", "manager_assignment").contains(request.getEnrollmentMode().toLowerCase())) {
             throw new RuntimeException("Invalid enrollment mode:" + request.getEnrollmentMode());
         }
     }

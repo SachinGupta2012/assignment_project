@@ -30,7 +30,8 @@ function MyCoursesContent() {
       try {
         if (user!.role === "LEARNER") {
           const enrollments = await apiFetch<Enrollment[]>("/api/enrollments/me?view=all");
-          const data = await Promise.all(enrollments.map(async ({ courseId }) => {
+          const accessibleEnrollments = enrollments.filter((enrollment) => enrollment.status === "approved" || enrollment.status === "completed");
+          const data = await Promise.all(accessibleEnrollments.map(async ({ courseId }) => {
             const [course, progress] = await Promise.all([
               apiFetch<Course>(`/api/courses/${courseId}`),
               apiFetch<Progress>(`/api/courses/${courseId}/progress`).catch(() => null),
@@ -63,7 +64,7 @@ function MyCoursesContent() {
             <article className="learning-row" key={course.id}>
               <div className="learning-thumbnail">{course.title.charAt(0)}</div>
               <div className="learning-copy"><h3>{course.title}</h3><span>{course.level} · {course.instructorName}</span></div>
-              {user?.role === "LEARNER" ? <div className="learning-progress"><ProgressBar value={progress} /><span>{progress}%</span></div> : <span className="muted-text">{course.isPublished ? "Published" : "Draft"}</span>}
+              {user?.role === "LEARNER" ? <div className="learning-progress"><ProgressBar value={progress} /><span>{progress}%</span></div> : <span className="muted-text">{course.isArchived ? "Archived" : course.isPublished ? "Published" : "Draft"}</span>}
               <Link href={`/courses/${course.id}`} className="button button-primary button-small">Open</Link>
             </article>
           ))}

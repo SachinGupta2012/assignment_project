@@ -87,11 +87,11 @@ public class GradingServiceTest {
         questionRequest.setCorrectAnswer("Paris");
         Long questionId = assessmentService.addQuestion(quizId, questionRequest).getId();
 
+        courseService.updateStatus(courseId, true, false);
         loginAs("priya.sharma@lms.com", "ROLE_TRAINING_MANAGER");
         EnrollmentRequest enrollRequest = new EnrollmentRequest();
         enrollRequest.setLearnerId(userId("ananya.iyer@lms.com"));
-        Long enrollmentId = enrollmentService.enroll(courseId, enrollRequest).getId();
-        enrollmentService.updateStatus(enrollmentId, "approved");
+        enrollmentService.enroll(courseId, enrollRequest);
 
         loginAs("ananya.iyer@lms.com", "ROLE_LEARNER");
         Long attemptId = attemptService.start(quizId).getId();

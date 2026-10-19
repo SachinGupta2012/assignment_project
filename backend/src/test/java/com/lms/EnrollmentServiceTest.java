@@ -58,11 +58,13 @@ public class EnrollmentServiceTest {
         request.setEstimateDuration(10);
         request.setLevel("beginner");
         request.setEnrollmentMode(mode);
-        return courseService.create(request).getId();
+        Long courseId = courseService.create(request).getId();
+        courseService.updateStatus(courseId, true, false);
+        return courseId;
     }
 
     @Test
-    public void enrollApproveAndDuplicateFails() {
+    public void managerEnrollmentIsApprovedAndDuplicateFails() {
         Long courseId = createCourse("open");
 
         loginAs("priya.sharma@lms.com", "ROLE_TRAINING_MANAGER");
@@ -70,10 +72,7 @@ public class EnrollmentServiceTest {
         request.setLearnerId(learnerId());
 
         var enrollment = enrollmentService.enroll(courseId, request);
-        assertEquals("pending", enrollment.getStatus());
-
-        var approved = enrollmentService.updateStatus(enrollment.getId(), "approved");
-        assertEquals("approved", approved.getStatus());
+        assertEquals("approved", enrollment.getStatus());
 
         assertThrows(RuntimeException.class, () -> enrollmentService.enroll(courseId, request));
     }

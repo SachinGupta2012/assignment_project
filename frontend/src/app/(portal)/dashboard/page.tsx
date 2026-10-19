@@ -30,7 +30,8 @@ export default function DashboardPage() {
       try {
         if (user!.role === "LEARNER") {
           const enrollments = await apiFetch<Enrollment[]>("/api/enrollments/me?view=all");
-          const rows = await Promise.all(enrollments.map(async (enrollment) => {
+          const accessibleEnrollments = enrollments.filter((enrollment) => enrollment.status === "approved" || enrollment.status === "completed");
+          const rows = await Promise.all(accessibleEnrollments.map(async (enrollment) => {
             const course = await apiFetch<Course>(`/api/courses/${enrollment.courseId}`);
             let progress = 0;
             try {
@@ -44,7 +45,7 @@ export default function DashboardPage() {
         } else {
           const query = user!.role === "INSTRUCTOR" ? queryString({ instructorId: user!.id, size: 20 }) : "?size=20";
           const courses = await apiFetch<PageResponse<Course>>(`/api/courses/search${query}`);
-          setItems(courses.content.map((course) => ({ course, progress: 0, status: course.isPublished ? "published" : "draft" })));
+          setItems(courses.content.map((course) => ({ course, progress: 0, status: course.isArchived ? "archived" : course.isPublished ? "published" : "draft" })));
         }
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Could not load the dashboard.");
@@ -85,7 +86,7 @@ export default function DashboardPage() {
               <article className="learning-row" key={course.id}>
                 <div className="learning-thumbnail">{course.title.charAt(0)}</div>
                 <div className="learning-copy"><h3>{course.title}</h3><span>{course.instructorName}</span></div>
-                {isLearner ? <div className="learning-progress"><ProgressBar value={progress} /><span>{progress}%</span></div> : <Badge tone={status === "published" ? "green" : "amber"}>{status}</Badge>}
+                {isLearner ? <div className="learning-progress"><ProgressBar value={progress} /><span>{progress}%</span></div> : <Badge tone={status === "published" ? "green" : status === "archived" ? "neutral" : "amber"}>{status}</Badge>}
                 <Link href={`/courses/${course.id}`} className="button button-primary button-small">{isLearner ? "Continue" : "Open"}</Link>
               </article>
             ))}

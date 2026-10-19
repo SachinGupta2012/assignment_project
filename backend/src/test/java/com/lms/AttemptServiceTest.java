@@ -17,6 +17,7 @@ import com.lms.dto.CourseRequest;
 import com.lms.dto.EnrollmentRequest;
 import com.lms.dto.QuestionRequest;
 import com.lms.entity.User;
+import com.lms.repository.EnrollmentRepository;
 import com.lms.repository.UserRepository;
 import com.lms.service.AssessmentService;
 import com.lms.service.AttemptService;
@@ -39,6 +40,9 @@ public class AttemptServiceTest {
 
     @Autowired
     private EnrollmentService enrollmentService;
+
+    @Autowired
+    private EnrollmentRepository enrollmentRepository;
 
     @Autowired
     private CourseService courseService;
@@ -72,7 +76,7 @@ public class AttemptServiceTest {
         AssessmentRequest quizRequest = new AssessmentRequest();
         quizRequest.setTitle("Q1");
         quizRequest.setPassingScore(60);
-        quizRequest.setMaxAttempts(1);
+        quizRequest.setMaxAttempts(2);
         Long quizId = assessmentService.create(courseId, quizRequest).getId();
 
         QuestionRequest questionRequest = new QuestionRequest();
@@ -101,11 +105,11 @@ public class AttemptServiceTest {
         secondQuestion.setOptions(List.of(correct, wrong));
         assessmentService.addQuestion(quizId, secondQuestion);
 
+        courseService.updateStatus(courseId, true, false);
         loginAs("priya.sharma@lms.com", "ROLE_TRAINING_MANAGER");
         EnrollmentRequest enrollRequest = new EnrollmentRequest();
         enrollRequest.setLearnerId(userId("ananya.iyer@lms.com"));
         Long enrollmentId = enrollmentService.enroll(courseId, enrollRequest).getId();
-        enrollmentService.updateStatus(enrollmentId, "approved");
 
         loginAs("ananya.iyer@lms.com", "ROLE_LEARNER");
         var attempt = attemptService.start(quizId);
@@ -122,6 +126,11 @@ public class AttemptServiceTest {
         assertEquals(new BigDecimal("50.00"), graded.getPercentage());
         assertFalse(graded.getPassed());
         assertEquals(correctOptionId, attemptService.getAnswers(attempt.getId()).get(0).getSelectedOptionId());
+
+        var enrollment = enrollmentRepository.findById(enrollmentId).orElseThrow();
+        enrollment.setStatus("completed");
+        enrollmentRepository.save(enrollment);
+        assertEquals(2, attemptService.start(quizId).getAttemptNumber());
 
         assertThrows(RuntimeException.class, () -> attemptService.start(quizId));
     }

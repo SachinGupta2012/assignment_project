@@ -89,11 +89,11 @@ public class ProgressServiceTest {
         Long firstLessonId = createLesson(courseId, moduleId, "L1", 1);
         Long secondLessonId = createLesson(courseId, moduleId, "L2", 2);
 
+        courseService.updateStatus(courseId, true, false);
         loginAs("priya.sharma@lms.com", "ROLE_TRAINING_MANAGER");
         EnrollmentRequest enrollRequest = new EnrollmentRequest();
         enrollRequest.setLearnerId(userId("ananya.iyer@lms.com"));
-        Long enrollmentId = enrollmentService.enroll(courseId, enrollRequest).getId();
-        enrollmentService.updateStatus(enrollmentId, "approved");
+        enrollmentService.enroll(courseId, enrollRequest);
 
         loginAs("ananya.iyer@lms.com", "ROLE_LEARNER");
         assertEquals("L1", progressService.resume(courseId).getTitle());

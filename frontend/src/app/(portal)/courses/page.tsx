@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { CourseCard } from "@/components/course/course-card";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -26,28 +26,35 @@ export default function CourseCatalogPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadCourses = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const query = queryString({ title: search, level, published: true, archived: false, size: 24 });
-      const result = await apiFetch<PageResponse<Course>>(`/api/courses/search${query}`);
-      setCourses(result.content);
-      if (hasPermission(user?.role, "course.enroll")) {
-        const enrollments = await apiFetch<Enrollment[]>("/api/enrollments/me?view=all");
-        setEnrolledCourseIds(new Set(enrollments.map((enrollment) => enrollment.courseId)));
+  useEffect(() => {
+    let active = true;
+    async function loadCourses() {
+      try {
+        const query = queryString({ title: search, level, published: true, archived: false, size: 24 });
+        const result = await apiFetch<PageResponse<Course>>(`/api/courses/search${query}`);
+        if (!active) return;
+        setCourses(result.content);
+        if (hasPermission(user?.role, "course.enroll")) {
+          const enrollments = await apiFetch<Enrollment[]>("/api/enrollments/me?view=all");
+          if (!active) return;
+          setEnrolledCourseIds(new Set(enrollments
+            .filter((enrollment) => enrollment.status === "approved" || enrollment.status === "completed")
+            .map((enrollment) => enrollment.courseId)));
+        }
+      } catch (requestError) {
+        if (active) setError(requestError instanceof Error ? requestError.message : "Could not load courses.");
+      } finally {
+        if (active) setLoading(false);
       }
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Could not load courses.");
-    } finally {
-      setLoading(false);
     }
-  }, [level, search, user?.role]);
-
-  useEffect(() => { void loadCourses(); }, [loadCourses]);
+    void loadCourses();
+    return () => { active = false; };
+  }, [level, search, user]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
+    setError("");
     setSearch(searchInput.trim());
   }
 
@@ -71,7 +78,7 @@ export default function CourseCatalogPage() {
       <PageTitle title="Course catalog" description="Find the right course and start learning." />
       <form className="catalog-filters" onSubmit={handleSearch}>
         <div className="search-input"><Icon name="search" size={17} /><Input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search courses..." aria-label="Search courses" /></div>
-        <Select value={level} onChange={(event) => setLevel(event.target.value)} aria-label="Filter by level">
+        <Select value={level} onChange={(event) => { setLoading(true); setError(""); setLevel(event.target.value); }} aria-label="Filter by level">
           <option value="">All levels</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option>
         </Select>
         <Button type="submit">Search</Button>
@@ -84,8 +91,9 @@ export default function CourseCatalogPage() {
         <div className="course-grid">
           {courses.map((course) => {
             const enrolled = enrolledCourseIds.has(course.id);
+            const selfEnrollmentAllowed = course.enrollmentMode === "self_enroll" || course.enrollmentMode === "open";
             return <CourseCard key={course.id} course={course} action={hasPermission(user?.role, "course.enroll") ? (
-              enrolled ? <Link href={`/courses/${course.id}`} className="button button-secondary button-full">Open course</Link> : <Button fullWidth disabled={busyCourseId === course.id} onClick={() => enroll(course.id)}>{busyCourseId === course.id ? "Enrolling..." : "Enroll"}</Button>
+              enrolled ? <Link href={`/courses/${course.id}`} className="button button-secondary button-full">Open course</Link> : selfEnrollmentAllowed ? <Button fullWidth disabled={busyCourseId === course.id} onClick={() => enroll(course.id)}>{busyCourseId === course.id ? "Enrolling..." : "Enroll"}</Button> : <Button fullWidth variant="secondary" disabled>Manager assignment required</Button>
             ) : <Link href={`/courses/${course.id}`} className="button button-secondary button-full">View course</Link>} />;
           })}
         </div>

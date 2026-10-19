@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Icon } from "@/components/ui/icon";
 import { LoadingState } from "@/components/ui/feedback";
+import { NotificationMenu } from "./notification-menu";
 import { Sidebar } from "./sidebar";
 
 const roleLabels = {
@@ -18,8 +19,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
+  const [openMenu, setOpenMenu] = useState<"notifications" | "profile" | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const profileOpen = openMenu === "profile";
 
   useEffect(() => {
     if (!loading && !user) {
@@ -28,32 +30,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [loading, router, user]);
 
   useEffect(() => {
-    if (!profileOpen) return;
+    if (!openMenu) return;
 
-    function closeProfile(event: MouseEvent) {
-      if (!profileRef.current?.contains(event.target as Node)) {
-        setProfileOpen(false);
+    function closeMenu(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpenMenu(null);
       }
     }
 
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setProfileOpen(false);
+      if (event.key === "Escape") setOpenMenu(null);
     }
 
-    document.addEventListener("mousedown", closeProfile);
+    document.addEventListener("mousedown", closeMenu);
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.removeEventListener("mousedown", closeProfile);
+      document.removeEventListener("mousedown", closeMenu);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [profileOpen]);
+  }, [openMenu]);
 
   if (loading || !user) {
     return <div className="full-page-state"><LoadingState label="Preparing your workspace..." /></div>;
   }
 
   function handleLogout() {
-    setProfileOpen(false);
+    setOpenMenu(null);
     logout();
     router.replace("/login");
   }
@@ -64,13 +66,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-main">
         <header className="topbar">
           <button className="icon-button mobile-only" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Icon name="menu" /></button>
-          <div className="profile-menu" ref={profileRef}>
+          <div className="topbar-actions" ref={menuRef}>
+            <NotificationMenu open={openMenu === "notifications"} onToggle={() => setOpenMenu((current) => current === "notifications" ? null : "notifications")} onClose={() => setOpenMenu(null)} />
+            <div className="profile-menu">
             <button
               className="profile-trigger"
               type="button"
               aria-haspopup="menu"
               aria-expanded={profileOpen}
-              onClick={() => setProfileOpen((open) => !open)}
+              onClick={() => setOpenMenu((current) => current === "profile" ? null : "profile")}
             >
               <span className="avatar">{user.firstName.charAt(0)}{user.lastName.charAt(0)}</span>
               <span className="user-copy"><strong>{user.firstName} {user.lastName}</strong><small>{roleLabels[user.role]}</small></span>
@@ -81,6 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button type="button" role="menuitem" onClick={handleLogout}><Icon name="logout" size={18} />Logout</button>
               </div>
             ) : null}
+            </div>
           </div>
         </header>
         <main className="page-content">{children}</main>

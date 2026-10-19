@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Comparator;
 
 @Service
 public class UserService {
@@ -35,6 +36,18 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> getLearners() {
+        return userRepository.findAll().stream()
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .filter(user -> user.getRoles().stream()
+                        .anyMatch(role -> "LEARNER".equals(role.getName())))
+                .sorted(Comparator.comparing(User::getFirstName)
+                        .thenComparing(User::getLastName))
                 .map(this::toResponse)
                 .toList();
     }

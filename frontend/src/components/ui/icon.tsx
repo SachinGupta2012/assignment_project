@@ -1,4 +1,5 @@
 export type IconName =
+  | "bell"
   | "book"
   | "check"
   | "chevronDown"
@@ -23,6 +24,7 @@ export type IconName =
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, React.ReactNode> = {
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></>,
     book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 5.5v15A2.5 2.5 0 0 1 6.5 18H20"/></>,
     check: <path d="m5 12 4 4L19 6" />,
     chevronDown: <path d="m6 9 6 6 6-6" />,

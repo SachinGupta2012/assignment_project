@@ -72,7 +72,7 @@ public class AttemptService {
         Enrollment enrollment = enrollmentRepository
                 .findByUserIdAndCourseId(learner.getId(), assessment.getCourse().getId())
                 .orElseThrow(() -> new RuntimeException("You are not enrolled in this course"));
-        if (!"approved".equals(enrollment.getStatus())) {
+        if (!"approved".equals(enrollment.getStatus()) && !"completed".equals(enrollment.getStatus())) {
             throw new RuntimeException("Your enrollment is not approved yet");
         }
 

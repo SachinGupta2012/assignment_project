@@ -1,6 +1,7 @@
 package com.lms.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -48,12 +49,22 @@ public class EnrollmentService {
     public EnrollmentResponse enroll(Long courseId, EnrollmentRequest request) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found: "+ courseId));
+        if (!Boolean.TRUE.equals(course.getIsPublished()) || Boolean.TRUE.equals(course.getIsArchived())) {
+            throw new RuntimeException("Learners can only be assigned to published courses");
+        }
 
         User learner = userRepository.findById(request.getLearnerId())
                 .orElseThrow(() -> new RuntimeException("Learner not found: "+ request.getLearnerId()));
 
-        if (enrollmentRepository.existsByUserIdAndCourseId(learner.getId(), courseId)) {
-            throw new RuntimeException("Learner is already enrolled in this course");
+        Optional<Enrollment> existing = enrollmentRepository.findByUserIdAndCourseId(learner.getId(), courseId);
+        if (existing.isPresent()) {
+            if ("completed".equals(existing.get().getStatus())) {
+                throw new RuntimeException("Learner has already completed this course");
+            }
+            if ("rejected".equals(existing.get().getStatus())) {
+                throw new RuntimeException("Learner has a rejected enrollment; update its status instead");
+            }
+            throw new RuntimeException("Learner already has an active enrollment for this course");
         }
 
         User currentUser = getCurrentUser();
@@ -61,7 +72,7 @@ public class EnrollmentService {
         Enrollment enrollment = new Enrollment();
         enrollment.setCourse(course);
         enrollment.setUser(learner);
-        enrollment.setStatus("pending");
+        enrollment.setStatus("approved");
         enrollment.setDueDate(request.getDueDate());
         enrollment.setCreatedBy(currentUser);
         enrollment.setUpdatedBy(currentUser);
@@ -109,6 +120,12 @@ public class EnrollmentService {
         enrollment.setCreatedBy(learner);
         enrollment.setUpdatedBy(learner);
         Enrollment saved = enrollmentRepository.save(enrollment);
+
+        notificationService.create(learner, "ENROLLMENT",
+                "Enrolled in " + course.getTitle(),
+                "You have enrolled in " + course.getTitle());
+        activityService.record(learner, "ENROLLMENT_CREATED", "enrollment", saved.getId());
+
         return toResponse(saved);
     }
 
@@ -145,6 +162,9 @@ public class EnrollmentService {
         }
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new RuntimeException("Enrollment not found: " + enrollmentId));
+        if ("completed".equals(enrollment.getStatus())) {
+            throw new RuntimeException("Completed enrollments cannot be changed");
+        }
         enrollment.setStatus(status);
         enrollment.setUpdatedBy(getCurrentUser());
         return toResponse(enrollment);
