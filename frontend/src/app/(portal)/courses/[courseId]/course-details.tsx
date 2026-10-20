@@ -14,7 +14,7 @@ import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/api";
 import { getCourseContent, type ModuleWithLessons } from "@/lib/courses";
 import { hasPermission } from "@/lib/permissions";
-import type { Assessment, Course, Enrollment, Lesson, PageResponse } from "@/types/api";
+import type { Assessment, Course, Enrollment, Lesson, PageResponse, Progress } from "@/types/api";
 
 export function CourseDetails({ courseId }: { courseId: number }) {
   const router = useRouter();
@@ -23,6 +23,8 @@ export function CourseDetails({ courseId }: { courseId: number }) {
   const [modules, setModules] = useState<ModuleWithLessons[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [enrolled, setEnrolled] = useState(false);
+  const [enrollmentStatus, setEnrollmentStatus] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -45,7 +47,15 @@ export function CourseDetails({ courseId }: { courseId: number }) {
         setAssessments(assessmentData.content);
         if (hasPermission(user?.role, "course.enroll")) {
           const enrollments = await apiFetch<Enrollment[]>("/api/enrollments/me?view=all");
-          setEnrolled(enrollments.some((item) => item.courseId === courseId && (item.status === "approved" || item.status === "completed")));
+          const enrollment = enrollments.find((item) => item.courseId === courseId && (item.status === "approved" || item.status === "completed"));
+          setEnrolled(Boolean(enrollment));
+          setEnrollmentStatus(enrollment?.status ?? null);
+          if (enrollment) {
+            const progressData = await apiFetch<Progress>(`/api/courses/${courseId}/progress`);
+            setProgress(progressData.percentage);
+          } else {
+            setProgress(0);
+          }
         }
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Could not load this course.");
@@ -64,8 +74,10 @@ export function CourseDetails({ courseId }: { courseId: number }) {
     setBusy(true);
     setError("");
     try {
-      await apiFetch(`/api/courses/${courseId}/self-enroll`, { method: "POST" });
+      const enrollment = await apiFetch<Enrollment>(`/api/courses/${courseId}/self-enroll`, { method: "POST" });
       setEnrolled(true);
+      setEnrollmentStatus(enrollment.status);
+      setProgress(0);
       setSuccess("Enrollment successful. You can start the course now.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not enroll in this course.");
@@ -168,8 +180,11 @@ export function CourseDetails({ courseId }: { courseId: number }) {
   if (!course) return <ErrorBanner message={error || "Course not found."} />;
 
   const selfEnrollmentAllowed = course.enrollmentMode === "self_enroll" || course.enrollmentMode === "open";
-  const learnerAction = enrolled ? (
-    <Button onClick={continueLearning} disabled={busy}>{busy ? "Loading..." : "Continue learning"}</Button>
+  const completed = enrollmentStatus === "completed" || progress >= 100;
+  const learnerAction = enrolled ? completed ? (
+    <Button variant="secondary" disabled>Completed</Button>
+  ) : (
+    <Button onClick={continueLearning} disabled={busy}>{busy ? "Loading..." : progress > 0 ? "Continue learning" : "Start learning"}</Button>
   ) : selfEnrollmentAllowed ? <Button onClick={enroll} disabled={busy}>{busy ? "Enrolling..." : "Enroll now"}</Button> : <Button variant="secondary" disabled>Manager assignment required</Button>;
 
   return (
