@@ -5,7 +5,6 @@ import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.Set;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -41,13 +40,7 @@ public class CourseService {
         User instructor = userRepository.findById(request.getInstructorId())
                 .orElseThrow(() -> new RuntimeException("Instructor not found"));
 
-        if(!Set.of("beginner","intermediate","advanced").contains(request.getLevel().toLowerCase())){
-            throw new RuntimeException("Invalid level:"+request.getLevel());
-
-        }
-        if(!Set.of("open","self_enroll","instructor_approval").contains(request.getEnrollmentMode().toLowerCase())){
-            throw new RuntimeException("Invalid enrollment mode:"+request.getEnrollmentMode());
-        }
+        validateLevelAndMode(request);
 
         Course course = new Course();
         course.setTitle(request.getTitle());

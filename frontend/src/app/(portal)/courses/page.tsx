@@ -57,12 +57,26 @@ export default function CourseCatalogPage() {
     return () => { active = false; };
   }, [level, page, search, user?.role]);
 
+  useEffect(() => {
+    const nextSearch = searchInput.trim();
+    if (nextSearch === search) return;
+    const timeoutId = window.setTimeout(() => {
+      setLoading(true);
+      setError("");
+      setPage(0);
+      setSearch(nextSearch);
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [search, searchInput]);
+
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const nextSearch = searchInput.trim();
+    if (nextSearch === search) return;
     setLoading(true);
     setError("");
     setPage(0);
-    setSearch(searchInput.trim());
+    setSearch(nextSearch);
   }
 
   function changeLevel(value: string) {

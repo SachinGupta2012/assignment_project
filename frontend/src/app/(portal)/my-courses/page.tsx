@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { Badge, PageTitle, ProgressBar } from "@/components/ui/display";
 import { EmptyState, LoadingState } from "@/components/ui/feedback";
+import { Input, Select } from "@/components/ui/form-field";
+import { Icon } from "@/components/ui/icon";
 import { Pagination } from "@/components/ui/pagination";
 import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch, queryString } from "@/lib/api";
@@ -23,6 +25,9 @@ function MyCoursesContent() {
   const [items, setItems] = useState<MyCourseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [level, setLevel] = useState("");
+  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -57,15 +62,45 @@ function MyCoursesContent() {
     void load();
   }, [user]);
 
-  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return items.filter(({ course, progress }) => {
+      const matchesSearch = !term || [course.title, course.description, course.instructorName, course.tags]
+        .some((value) => value?.toLowerCase().includes(term));
+      const matchesLevel = !level || course.level.toLowerCase() === level;
+      const matchesStatus = !status || (user?.role === "LEARNER"
+        ? status === "not_started" ? progress === 0
+          : status === "in_progress" ? progress > 0 && progress < 100
+            : progress === 100
+        : status === "archived" ? course.isArchived
+          : status === "published" ? course.isPublished && !course.isArchived
+            : !course.isPublished && !course.isArchived);
+      return matchesSearch && matchesLevel && matchesStatus;
+    });
+  }, [items, level, search, status, user?.role]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const visibleItems = items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const visibleItems = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function updateFilter(setter: (value: string) => void, value: string) {
+    setter(value);
+    setPage(1);
+  }
 
   return (
     <div className="page-stack">
       <PageTitle title="My courses" description={user?.role === "LEARNER" ? "Continue where you left off." : "Courses you can manage."} />
+      <div className="catalog-filters">
+        <div className="search-input"><Icon name="search" size={17} /><Input value={search} onChange={(event) => updateFilter(setSearch, event.target.value)} placeholder="Search by course, instructor, or tag" aria-label="Search my courses" /></div>
+        <Select value={level} onChange={(event) => updateFilter(setLevel, event.target.value)} aria-label="Filter by level"><option value="">All levels</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select>
+        <Select value={status} onChange={(event) => updateFilter(setStatus, event.target.value)} aria-label={user?.role === "LEARNER" ? "Filter by progress" : "Filter by status"}>
+          <option value="">{user?.role === "LEARNER" ? "All progress" : "All statuses"}</option>
+          {user?.role === "LEARNER" ? <><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="completed">Completed</option></> : <><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></>}
+        </Select>
+      </div>
       <ToastMessage message={error} type="error" />
-      {loading ? <LoadingState label="Loading your courses..." /> : items.length === 0 ? <EmptyState title="Nothing here yet" message="Your courses will appear here." /> : (
+      {loading ? <LoadingState label="Loading your courses..." /> : items.length === 0 ? <EmptyState title="Nothing here yet" message="Your courses will appear here." /> : filteredItems.length === 0 ? <EmptyState title="No courses found" message="Change the search or filters and try again." /> : (
         <div className="table-stack">
           <div className="table-wrap"><table className="data-table course-table">
             <thead><tr><th>Course</th><th>Instructor</th><th>Level</th><th>{user?.role === "LEARNER" ? "Progress" : "Status"}</th><th>Action</th></tr></thead>
