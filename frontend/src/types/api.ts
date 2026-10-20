@@ -145,6 +145,12 @@ export interface Progress {
   percentage: number;
 }
 
+export interface LessonCompletion {
+  lessonId: number;
+  learnerId: number;
+  completedAt: string;
+}
+
 export interface AnswerItem {
   questionId: number;
   selectedOptionId?: number;

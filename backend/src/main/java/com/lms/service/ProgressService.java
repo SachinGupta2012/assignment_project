@@ -112,6 +112,24 @@ public class ProgressService {
         return calculateProgress(course, learner);
     }
 
+    @Transactional(readOnly = true)
+    public List<LessonCompletionResponse> getLessonCompletions(Long courseId) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new RuntimeException("Course not found: " + courseId);
+        }
+        User learner = getCurrentUser();
+        enrollmentRepository.findByUserIdAndCourseId(learner.getId(), courseId)
+                .orElseThrow(() -> new RuntimeException("You are not enrolled in this course"));
+        return completionRepository
+                .findByLessonModuleCourseIdAndLearnerIdOrderByCompletedAtAsc(courseId, learner.getId())
+                .stream()
+                .map(completion -> new LessonCompletionResponse(
+                        completion.getLesson().getId(),
+                        learner.getId(),
+                        completion.getCompletedAt()))
+                .toList();
+    }
+
     @Transactional
     public void refreshEnrollmentStatus(Long courseId, Long learnerId) {
         Course course = courseRepository.findById(courseId)

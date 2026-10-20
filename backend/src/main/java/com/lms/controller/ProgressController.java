@@ -1,5 +1,7 @@
 package com.lms.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +33,11 @@ public class ProgressController {
     public ResponseEntity<ProgressResponse> progress(@PathVariable Long courseId,
                                                      @RequestParam(required = false) Long learnerId) {
         return ResponseEntity.ok(progressService.getProgress(courseId, learnerId));
+    }
+
+    @GetMapping("/courses/{courseId}/lesson-completions")
+    public ResponseEntity<List<LessonCompletionResponse>> lessonCompletions(@PathVariable Long courseId) {
+        return ResponseEntity.ok(progressService.getLessonCompletions(courseId));
     }
 
     @GetMapping("/courses/{courseId}/resume")

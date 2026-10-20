@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/auth/role-guard";
 import { ErrorBanner, LoadingState } from "@/components/ui/feedback";
@@ -9,15 +10,17 @@ import { Icon } from "@/components/ui/icon";
 import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/api";
 import { getCourseContent, type ModuleWithLessons } from "@/lib/courses";
-import type { Assessment, Course, Lesson, PageResponse } from "@/types/api";
+import type { Assessment, Course, Lesson, LessonCompletion, PageResponse } from "@/types/api";
 
 export function LessonView({ courseId, lessonId }: { courseId: number; lessonId: number }) {
+  const { user } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<ModuleWithLessons[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
-  const [completed, setCompleted] = useState(false);
+  const [completedLessonIds, setCompletedLessonIds] = useState<Set<number>>(new Set());
+  const [completedNowId, setCompletedNowId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -25,15 +28,17 @@ export function LessonView({ courseId, lessonId }: { courseId: number; lessonId:
       apiFetch<Course>(`/api/courses/${courseId}`),
       getCourseContent(courseId),
       apiFetch<PageResponse<Assessment>>(`/api/courses/${courseId}/assessments?size=50`),
+      user?.role === "LEARNER" ? apiFetch<LessonCompletion[]>(`/api/courses/${courseId}/lesson-completions`) : Promise.resolve([]),
     ])
-      .then(([courseData, content, assessmentData]) => {
+      .then(([courseData, content, assessmentData, completions]) => {
         setCourse(courseData);
         setModules(content);
         setAssessments(assessmentData.content);
+        setCompletedLessonIds(new Set(completions.map((completion) => completion.lessonId)));
       })
       .catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Could not load this lesson."))
       .finally(() => setLoading(false));
-  }, [courseId]);
+  }, [courseId, user?.role]);
 
   const lessons = useMemo(() => modules.flatMap((module) => module.lessons), [modules]);
   const lesson = lessons.find((item) => item.id === lessonId) ?? null;
@@ -56,13 +61,15 @@ export function LessonView({ courseId, lessonId }: { courseId: number; lessonId:
   }, [assessments, modules]);
   const currentIndex = learningItems.findIndex((item) => item.type === "lesson" && item.id === lessonId);
   const nextItem = currentIndex >= 0 ? learningItems[currentIndex + 1] : undefined;
+  const completed = completedLessonIds.has(lessonId);
 
   async function markComplete() {
     setCompleting(true);
     setError("");
     try {
       await apiFetch(`/api/lessons/${lessonId}/complete`, { method: "POST" });
-      setCompleted(true);
+      setCompletedLessonIds((current) => new Set(current).add(lessonId));
+      setCompletedNowId(lessonId);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not mark this lesson complete.");
     } finally {
@@ -85,6 +92,7 @@ export function LessonView({ courseId, lessonId }: { courseId: number; lessonId:
             assessments={assessments.filter((assessment) => assessment.moduleId === module.id)}
             courseId={courseId}
             activeLessonId={lessonId}
+            completedLessonIds={completedLessonIds}
           />
         ))}
         <AssessmentLinks
@@ -95,7 +103,7 @@ export function LessonView({ courseId, lessonId }: { courseId: number; lessonId:
       </aside>
       <section className="lesson-content">
         <ToastMessage message={error} type="error" />
-        <ToastMessage message={completed ? "Lesson completed. Your progress has been updated." : ""} type="success" />
+        <ToastMessage message={completedNowId === lessonId ? "Lesson completed. Your progress has been updated." : ""} type="success" />
         <div className="lesson-heading"><div><span>{lesson.contentType}</span><h1>{lesson.title}</h1></div>{lesson.duration ? <span><Icon name="clock" size={15} />{lesson.duration} min</span> : null}</div>
         <LessonBody lesson={lesson} />
         <div className="lesson-actions">
@@ -107,9 +115,13 @@ export function LessonView({ courseId, lessonId }: { courseId: number; lessonId:
   );
 }
 
-function LessonModule({ module, assessments, courseId, activeLessonId }: { module: ModuleWithLessons; assessments: Assessment[]; courseId: number; activeLessonId: number }) {
+function LessonModule({ module, assessments, courseId, activeLessonId, completedLessonIds }: { module: ModuleWithLessons; assessments: Assessment[]; courseId: number; activeLessonId: number; completedLessonIds: Set<number> }) {
   return (
-    <div className="lesson-module"><h3>{module.title}</h3>{module.lessons.map((lesson, index) => <Link key={lesson.id} href={`/courses/${courseId}/lessons/${lesson.id}`} className={lesson.id === activeLessonId ? "active" : ""}><span>{index + 1}</span>{lesson.title}</Link>)}<AssessmentLinks assessments={assessments} courseId={courseId} /></div>
+    <div className="lesson-module"><h3>{module.title}</h3>{module.lessons.map((lesson, index) => {
+      const lessonCompleted = completedLessonIds.has(lesson.id);
+      const className = [lesson.id === activeLessonId ? "active" : "", lessonCompleted ? "lesson-completed" : ""].filter(Boolean).join(" ");
+      return <Link key={lesson.id} href={`/courses/${courseId}/lessons/${lesson.id}`} className={className}><span>{lessonCompleted ? <Icon name="check" size={13} /> : index + 1}</span>{lesson.title}{lessonCompleted ? <small className="lesson-completed-label">Completed</small> : null}</Link>;
+    })}<AssessmentLinks assessments={assessments} courseId={courseId} /></div>
   );
 }
 

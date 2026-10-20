@@ -259,6 +259,9 @@ button { cursor: pointer; }
 .lesson-module a { display: flex; align-items: center; gap: 9px; border-radius: 7px; padding: 9px 8px; color: var(--slate-600); font-size: 12px; }
 .lesson-module a span { width: 21px; height: 21px; display: grid; place-items: center; border: 1px solid var(--slate-200); border-radius: 50%; font-size: 10px; }
 .lesson-module a:hover, .lesson-module a.active { background: var(--blue-50); color: var(--blue-700); }
+.lesson-module a.lesson-completed { color: var(--green-500); }
+.lesson-module a.lesson-completed > span { border-color: #a7e6ca; background: var(--green-50); color: var(--green-500); }
+.lesson-completed-label { margin-left: auto; color: var(--green-500); font-size: 10px; font-weight: 700; }
 .lesson-content { min-width: 0; display: flex; flex-direction: column; padding: 30px; }
 .lesson-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--slate-100); }
 .lesson-heading h1 { margin-top: 5px; font-size: 26px; letter-spacing: -0.03em; }
