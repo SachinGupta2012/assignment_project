@@ -10,7 +10,7 @@ import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch, queryString } from "@/lib/api";
 import type { ActivityHistoryRecord, PageResponse } from "@/types/api";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 const ACTIONS = [
   "COURSE_PUBLISHED", "COURSE_UNPUBLISHED", "COURSE_ARCHIVED", "COURSE_RESTORED",
   "ENROLLMENT_CREATED", "ENROLLMENT_REMOVED", "LESSON_COMPLETED", "COURSE_COMPLETED",

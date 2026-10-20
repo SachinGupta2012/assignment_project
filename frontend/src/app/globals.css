@@ -361,12 +361,18 @@ button { cursor: pointer; }
 .grading-table { min-width: 980px; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--slate-200); border-radius: var(--radius); background: #fff; }
+.table-stack { display: grid; gap: 12px; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 820px; }
 .data-table th { background: var(--slate-50); color: var(--slate-600); font-size: 11px; text-align: left; text-transform: uppercase; letter-spacing: .03em; }
 .data-table th, .data-table td { border-bottom: 1px solid var(--slate-100); padding: 12px; vertical-align: middle; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table td strong { display: block; font-size: 12px; }
 .data-table td p { max-width: 340px; margin-top: 4px; color: var(--slate-500); font-size: 12px; }
+.course-table { min-width: 960px; }
+.results-table { min-width: 940px; }
+.notification-table { min-width: 900px; }
+.table-progress { min-width: 190px; display: grid; grid-template-columns: minmax(120px, 1fr) 42px; align-items: center; gap: 10px; }
+.table-progress > span { color: var(--slate-500); font-size: 11px; text-align: right; }
 .marks-input { display: flex; align-items: center; gap: 7px; min-width: 105px; }
 .marks-input .input { width: 65px; }
 .marks-input span { color: var(--slate-500); font-size: 12px; }

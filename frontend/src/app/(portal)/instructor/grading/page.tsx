@@ -7,8 +7,11 @@ import { Badge, PageTitle } from "@/components/ui/display";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui/feedback";
 import { ToastMessage, useToast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/form-field";
+import { Pagination } from "@/components/ui/pagination";
 import { apiFetch, queryString } from "@/lib/api";
 import type { AttemptAnswer } from "@/types/api";
+
+const PAGE_SIZE = 10;
 
 export default function GradingPage() {
   const { user } = useAuth();
@@ -110,11 +113,16 @@ interface GradingTableProps {
 }
 
 function GradingTable({ answers, marks, feedback, reasons, busyId, correction = false, onMarksChange, onFeedbackChange, onReasonChange, onSave }: GradingTableProps) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(answers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleAnswers = answers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
-    <div className="table-wrap">
-      <table className="data-table grading-table">
+    <div className="table-stack">
+      <div className="table-wrap"><table className="data-table grading-table">
         <thead><tr><th>Attempt</th><th>Question and answer</th><th>Marks</th><th>Feedback</th>{correction ? <th>Correction reason</th> : null}<th>Action</th></tr></thead>
-        <tbody>{answers.map((answer) => (
+        <tbody>{visibleAnswers.map((answer) => (
           <tr key={answer.id}>
             <td>Attempt {answer.attemptNumber}</td>
             <td><strong>{answer.questionText}</strong><p>{answer.answerText || answer.selectedOptionText || "No answer"}</p></td>
@@ -124,7 +132,8 @@ function GradingTable({ answers, marks, feedback, reasons, busyId, correction = 
             <td><Button className="button-small" disabled={busyId === answer.id} onClick={() => onSave(answer)}>{busyId === answer.id ? "Saving..." : correction ? "Update" : "Save"}</Button></td>
           </tr>
         ))}</tbody>
-      </table>
+      </table></div>
+      <Pagination page={currentPage} totalPages={pageCount} onPageChange={setPage} />
     </div>
   );
 }

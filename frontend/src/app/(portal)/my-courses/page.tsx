@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { RoleGuard } from "@/components/auth/role-guard";
-import { PageTitle, ProgressBar } from "@/components/ui/display";
+import { Badge, PageTitle, ProgressBar } from "@/components/ui/display";
 import { EmptyState, LoadingState } from "@/components/ui/feedback";
+import { Pagination } from "@/components/ui/pagination";
 import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch, queryString } from "@/lib/api";
 import type { Course, Enrollment, PageResponse, Progress } from "@/types/api";
 
 interface MyCourseItem { course: Course; progress: number; }
+const PAGE_SIZE = 10;
 
 export default function MyCoursesPage() {
   return <RoleGuard permission="myCourses.read"><MyCoursesContent /></RoleGuard>;
@@ -20,6 +22,7 @@ function MyCoursesContent() {
   const { user } = useAuth();
   const [items, setItems] = useState<MyCourseItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -54,20 +57,27 @@ function MyCoursesContent() {
     void load();
   }, [user]);
 
+  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleItems = items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <div className="page-stack">
       <PageTitle title="My courses" description={user?.role === "LEARNER" ? "Continue where you left off." : "Courses you can manage."} />
       <ToastMessage message={error} type="error" />
       {loading ? <LoadingState label="Loading your courses..." /> : items.length === 0 ? <EmptyState title="Nothing here yet" message="Your courses will appear here." /> : (
-        <div className="learning-list">
-          {items.map(({ course, progress }) => (
-            <article className="learning-row" key={course.id}>
-              <div className="learning-thumbnail">{course.title.charAt(0)}</div>
-              <div className="learning-copy"><h3>{course.title}</h3><span>{course.level} · {course.instructorName}</span></div>
-              {user?.role === "LEARNER" ? <div className="learning-progress"><ProgressBar value={progress} /><span>{progress}%</span></div> : <span className="muted-text">{course.isArchived ? "Archived" : course.isPublished ? "Published" : "Draft"}</span>}
-              <Link href={`/courses/${course.id}`} className="button button-primary button-small">Open</Link>
-            </article>
-          ))}
+        <div className="table-stack">
+          <div className="table-wrap"><table className="data-table course-table">
+            <thead><tr><th>Course</th><th>Instructor</th><th>Level</th><th>{user?.role === "LEARNER" ? "Progress" : "Status"}</th><th>Action</th></tr></thead>
+            <tbody>{visibleItems.map(({ course, progress }) => <tr key={course.id}>
+              <td><strong>{course.title}</strong><p>{course.description || "No description"}</p></td>
+              <td>{course.instructorName}</td>
+              <td><Badge>{course.level}</Badge></td>
+              <td>{user?.role === "LEARNER" ? <div className="table-progress"><ProgressBar value={progress} /><span>{progress}%</span></div> : <Badge tone={course.isArchived ? "neutral" : course.isPublished ? "green" : "amber"}>{course.isArchived ? "Archived" : course.isPublished ? "Published" : "Draft"}</Badge>}</td>
+              <td><Link href={`/courses/${course.id}`} className="button button-primary button-small">Open</Link></td>
+            </tr>)}</tbody>
+          </table></div>
+          <Pagination page={currentPage} totalPages={pageCount} onPageChange={setPage} />
         </div>
       )}
     </div>

@@ -7,11 +7,12 @@ import { RoleGuard } from "@/components/auth/role-guard";
 import { Badge, PageTitle, StatCard } from "@/components/ui/display";
 import { EmptyState, LoadingState } from "@/components/ui/feedback";
 import { ToastMessage } from "@/components/ui/toast";
-import { Icon } from "@/components/ui/icon";
+import { Pagination } from "@/components/ui/pagination";
 import { apiFetch } from "@/lib/api";
 import type { Assessment, Attempt, Course, Enrollment, PageResponse } from "@/types/api";
 
 interface ResultItem { course: Course; assessment: Assessment; attempt: Attempt; }
+const PAGE_SIZE = 10;
 
 export default function ResultsPage() {
   return <RoleGuard permission="results.read"><ResultsContent /></RoleGuard>;
@@ -21,6 +22,7 @@ function ResultsContent() {
   const { user } = useAuth();
   const [results, setResults] = useState<ResultItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -57,6 +59,9 @@ function ResultsContent() {
 
   const passedCount = results.filter(({ attempt }) => attempt.passed === true).length;
   const pendingCount = results.filter(({ attempt }) => attempt.status === "pending_grading").length;
+  const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleResults = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="page-stack">
@@ -69,19 +74,24 @@ function ResultsContent() {
             <StatCard label="Passed" value={passedCount} icon="check" tone="green" />
             <StatCard label="Pending grading" value={pendingCount} icon="clock" tone="amber" />
           </div>
-          <div className="results-list">
-            <div className="results-list-header"><span>Assessment</span><span>Score</span><span>Status</span><span /></div>
-            {results.map(({ course, assessment, attempt }) => {
+          <div className="table-stack">
+            <div className="table-wrap"><table className="data-table results-table">
+              <thead><tr><th>Course</th><th>Assessment</th><th>Attempt</th><th>Submitted</th><th>Score</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody>{visibleResults.map(({ course, assessment, attempt }) => {
               const pending = attempt.status === "pending_grading" || attempt.percentage === null;
               return (
-                <Link key={attempt.id} href={`/courses/${course.id}/assessments/${assessment.id}/results/${attempt.id}`} className="result-row">
-                  <div><span>{course.title}</span><h2>{assessment.title}</h2><small>Attempt {attempt.attemptNumber}</small></div>
-                  <div className="result-list-score"><strong>{pending ? "—" : `${Math.round(attempt.percentage ?? 0)}%`}</strong><small>{attempt.score} / {attempt.maxScore} points</small></div>
-                  <Badge tone={pending ? "amber" : attempt.passed ? "green" : "neutral"}>{pending ? "Pending" : attempt.passed ? "Passed" : "Not passed"}</Badge>
-                  <Icon name="chevronRight" size={17} />
-                </Link>
+                <tr key={attempt.id}>
+                  <td><strong>{course.title}</strong></td>
+                  <td><strong>{assessment.title}</strong></td>
+                  <td>#{attempt.attemptNumber}</td>
+                  <td>{new Date(attempt.submittedAt ?? attempt.startedAt).toLocaleString()}</td>
+                  <td><strong>{pending ? "—" : `${Math.round(attempt.percentage ?? 0)}%`}</strong><p>{attempt.score} / {attempt.maxScore} points</p></td>
+                  <td><Badge tone={pending ? "amber" : attempt.passed ? "green" : "neutral"}>{pending ? "Pending" : attempt.passed ? "Passed" : "Not passed"}</Badge></td>
+                  <td><Link href={`/courses/${course.id}/assessments/${assessment.id}/results/${attempt.id}`} className="button button-secondary button-small">View</Link></td>
+                </tr>
               );
-            })}
+            })}</tbody></table></div>
+            <Pagination page={currentPage} totalPages={pageCount} onPageChange={setPage} />
           </div>
         </>
       )}

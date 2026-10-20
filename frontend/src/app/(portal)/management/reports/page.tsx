@@ -25,7 +25,7 @@ interface PerformanceRow {
 }
 
 const emptyFilters: ReportFilters = { courseId: "", status: "", learnerId: "", from: "", to: "" };
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 export default function ReportsPage() {
   const [courses, setCourses] = useState<Course[]>([]);
