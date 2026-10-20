@@ -20,7 +20,7 @@ const rolePermissions: Record<Role, Permission[]> = {
   ADMIN: [
     "activity.read", "assessment.attempt", "content.manage", "course.enroll", "course.manage", "course.read",
     "enrollment.manage", "grading.manage", "lesson.complete", "myCourses.read", "notifications.read",
-    "reports.read", "results.read", "users.manage",
+    "reports.read", "users.manage",
   ],
   TRAINING_MANAGER: ["course.read", "enrollment.manage", "notifications.read", "reports.read"],
   INSTRUCTOR: ["content.manage", "course.manage", "course.read", "grading.manage", "myCourses.read", "notifications.read"],

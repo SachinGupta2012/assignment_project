@@ -13,7 +13,6 @@ const PAGE_SIZE = 10;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [activeOverrides, setActiveOverrides] = useState<Record<number, boolean>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -31,8 +30,8 @@ export default function UsersPage() {
     setBusyId(user.id);
     setError("");
     try {
-      await apiFetch(`/api/admin/users/${user.id}/active?active=${active}`, { method: "PATCH" });
-      setActiveOverrides((current) => ({ ...current, [user.id]: active }));
+      const updatedUser = await apiFetch<User>(`/api/admin/users/${user.id}/active?active=${active}`, { method: "PATCH" });
+      setUsers((current) => current.map((item) => item.id === updatedUser.id ? updatedUser : item));
       setSuccess(`${user.firstName} ${user.lastName} was ${active ? "activated" : "deactivated"}.`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not update this user.");
@@ -51,7 +50,7 @@ export default function UsersPage() {
       <ToastMessage message={error} type="error" /><ToastMessage message={success} type="success" />
       {loading ? <LoadingState /> : users.length === 0 ? <EmptyState title="No users" message="Registered users will appear here." /> : (
         <div className="table-stack"><div className="table-wrap"><table className="data-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Known status</th><th>Actions</th></tr></thead><tbody>
-          {visibleUsers.map((user) => <tr key={user.id}><td><strong>{user.firstName} {user.lastName}</strong><p>ID: {user.id}</p></td><td>{user.email}</td><td><Badge tone="blue">{user.role.replace("_", " ")}</Badge></td><td>{activeOverrides[user.id] === undefined ? <span className="muted-text">Not returned by API</span> : <Badge tone={activeOverrides[user.id] ? "green" : "amber"}>{activeOverrides[user.id] ? "Active" : "Inactive"}</Badge>}</td><td><div className="table-actions"><Button className="button-small" disabled={busyId === user.id || activeOverrides[user.id] === true} onClick={() => setActive(user, true)}>Activate</Button><Button className="button-small" variant="secondary" disabled={busyId === user.id || activeOverrides[user.id] === false} onClick={() => setActive(user, false)}>Deactivate</Button></div></td></tr>)}
+          {visibleUsers.map((user) => <tr key={user.id}><td><strong>{user.firstName} {user.lastName}</strong></td><td>{user.email}</td><td><Badge tone="blue">{user.role.replace("_", " ")}</Badge></td><td><Badge tone={user.isActive ? "green" : "amber"}>{user.isActive ? "Active" : "Inactive"}</Badge></td><td><div className="table-actions"><Button className="button-small" disabled={busyId === user.id || user.isActive} onClick={() => setActive(user, true)}>Activate</Button><Button className="button-small" variant="secondary" disabled={busyId === user.id || !user.isActive} onClick={() => setActive(user, false)}>Deactivate</Button></div></td></tr>)}
         </tbody></table></div><Pagination page={currentPage} totalPages={pageCount} onPageChange={setPage} /></div>
       )}
     </div>

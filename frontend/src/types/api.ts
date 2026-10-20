@@ -6,6 +6,7 @@ export interface User {
   lastName: string;
   email: string;
   role: Role;
+  isActive: boolean;
 }
 
 export interface LoginResponse {

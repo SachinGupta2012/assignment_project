@@ -73,7 +73,8 @@ public class UserService {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getEmail(),
-                resolveRole(user)
+                resolveRole(user),
+                user.getIsActive()
         );
     }
 }
