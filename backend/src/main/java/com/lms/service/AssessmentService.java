@@ -23,6 +23,7 @@ import com.lms.entity.Question;
 import com.lms.entity.QuestionOption;
 import com.lms.entity.User;
 import com.lms.repository.AssessmentRepository;
+import com.lms.repository.AssessmentAttemptRepository;
 import com.lms.repository.CourseModuleRepository;
 import com.lms.repository.CourseRepository;
 import com.lms.repository.QuestionOptionRepository;
@@ -35,6 +36,7 @@ public class AssessmentService {
     private static final Set<String> TYPES = Set.of("single_choice", "multiple_choice", "short_answer");
 
     private final AssessmentRepository assessmentRepository;
+    private final AssessmentAttemptRepository attemptRepository;
     private final QuestionRepository questionRepository;
     private final QuestionOptionRepository optionRepository;
     private final CourseRepository courseRepository;
@@ -42,12 +44,14 @@ public class AssessmentService {
     private final UserRepository userRepository;
 
     public AssessmentService(AssessmentRepository assessmentRepository,
+                             AssessmentAttemptRepository attemptRepository,
                              QuestionRepository questionRepository,
                              QuestionOptionRepository optionRepository,
                              CourseRepository courseRepository,
                              CourseModuleRepository moduleRepository,
                              UserRepository userRepository) {
         this.assessmentRepository = assessmentRepository;
+        this.attemptRepository = attemptRepository;
         this.questionRepository = questionRepository;
         this.optionRepository = optionRepository;
         this.courseRepository = courseRepository;
@@ -88,6 +92,36 @@ public class AssessmentService {
 
         Assessment saved = assessmentRepository.save(assessment);
         return toResponse(saved);
+    }
+
+    @Transactional
+    public AssessmentResponse update(Long courseId, Long assessmentId, AssessmentRequest request) {
+        Assessment assessment = getCourseAssessment(courseId, assessmentId);
+        if (attemptRepository.existsByAssessmentId(assessmentId)) {
+            throw new RuntimeException("Assessments with learner attempts cannot be edited");
+        }
+        CourseModule module = resolveModule(courseId, request.getModuleId());
+        assessment.setModule(module);
+        assessment.setTitle(request.getTitle());
+        assessment.setDescription(request.getDescription());
+        assessment.setPassingScore(BigDecimal.valueOf(request.getPassingScore()));
+        assessment.setTimeLimitMinutes(request.getTimeLimitMinutes());
+        assessment.setMaxAttempts(request.getMaxAttempts());
+        assessment.setDisplayOrder(request.getDisplayOrder());
+        assessment.setUpdatedBy(getCurrentUser());
+        return toResponse(assessmentRepository.save(assessment));
+    }
+
+    @Transactional
+    public void delete(Long courseId, Long assessmentId) {
+        Assessment assessment = getCourseAssessment(courseId, assessmentId);
+        if (Boolean.TRUE.equals(assessment.getCourse().getIsPublished())) {
+            throw new RuntimeException("Unpublish the course before deleting assessments");
+        }
+        if (attemptRepository.existsByAssessmentId(assessmentId)) {
+            throw new RuntimeException("This assessment has learner attempts and cannot be deleted");
+        }
+        assessmentRepository.delete(assessment);
     }
 
     // GET /api/courses/{courseId}/assessments
@@ -200,6 +234,25 @@ public class AssessmentService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Logged-in user not found"));
+    }
+
+    private Assessment getCourseAssessment(Long courseId, Long assessmentId) {
+        Assessment assessment = assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new RuntimeException("Assessment not found: " + assessmentId));
+        if (!assessment.getCourse().getId().equals(courseId)) {
+            throw new RuntimeException("Assessment " + assessmentId + " does not belong to course " + courseId);
+        }
+        return assessment;
+    }
+
+    private CourseModule resolveModule(Long courseId, Long moduleId) {
+        if (moduleId == null) return null;
+        CourseModule module = moduleRepository.findById(moduleId)
+                .orElseThrow(() -> new RuntimeException("Module not found: " + moduleId));
+        if (!module.getCourse().getId().equals(courseId)) {
+            throw new RuntimeException("Module " + moduleId + " does not belong to course " + courseId);
+        }
+        return module;
     }
 
     private AssessmentResponse toResponse(Assessment a) {

@@ -10,5 +10,6 @@ import com.lms.entity.LessonCompletion;
 @Repository
 public interface LessonCompletionRepository extends JpaRepository<LessonCompletion, Long> {
     boolean existsByLessonIdAndLearnerId(Long lessonId, Long learnerId);
+    boolean existsByLessonModuleId(Long moduleId);
     List<LessonCompletion> findByLessonModuleCourseIdAndLearnerIdOrderByCompletedAtAsc(Long courseId, Long learnerId);
 }

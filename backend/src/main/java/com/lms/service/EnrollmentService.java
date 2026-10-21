@@ -97,6 +97,11 @@ public class EnrollmentService {
         return enrollmentRepository.findByCourseId(courseId, pageable).map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<EnrollmentResponse> getAll(Pageable pageable) {
+        return enrollmentRepository.findAll(pageable).map(this::toResponse);
+    }
+
     // POST /api/courses/{courseId}/self-enroll
     @Transactional
     public EnrollmentResponse selfEnroll(Long courseId) {

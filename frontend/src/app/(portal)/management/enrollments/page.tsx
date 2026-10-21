@@ -27,6 +27,7 @@ export default function EnrollmentManagementPage() {
   const [loading, setLoading] = useState(true);
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [assignmentCourseId, setAssignmentCourseId] = useState("");
   const [learnerId, setLearnerId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,8 +45,7 @@ export default function EnrollmentManagementPage() {
         const publishedCourses = coursePage.content.filter((course) => course.isPublished && !course.isArchived);
         setCourses(publishedCourses);
         setLearners(learnerData);
-        if (publishedCourses[0]) setCourseId(String(publishedCourses[0].id));
-        else setEnrollmentsLoading(false);
+        if (publishedCourses[0]) setAssignmentCourseId(String(publishedCourses[0].id));
       })
       .catch((requestError) => {
         if (active) setError(requestError instanceof Error ? requestError.message : "Could not load enrollment data.");
@@ -55,9 +55,11 @@ export default function EnrollmentManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (!courseId) return;
     let active = true;
-    apiFetch<PageResponse<Enrollment>>(`/api/courses/${courseId}/enrollments?size=100`)
+    const endpoint = courseId
+      ? `/api/courses/${courseId}/enrollments?size=1000`
+      : "/api/enrollments?size=1000&sort=enrolledAt,desc";
+    apiFetch<PageResponse<Enrollment>>(endpoint)
       .then((data) => { if (active) setEnrollments(data.content); })
       .catch((requestError) => {
         if (active) setError(requestError instanceof Error ? requestError.message : "Could not load enrollments.");
@@ -67,6 +69,7 @@ export default function EnrollmentManagementPage() {
   }, [courseId]);
 
   const selectedCourse = courses.find((course) => String(course.id) === courseId);
+  const courseTitles = useMemo(() => new Map(courses.map((course) => [course.id, course.title])), [courses]);
   const filteredEnrollments = useMemo(() => enrollments.filter((enrollment) => {
     const matchesSearch = `${enrollment.learnerName} ${enrollment.learnerId}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || enrollment.status === statusFilter;
@@ -94,6 +97,7 @@ export default function EnrollmentManagementPage() {
   }
 
   function openAssignment() {
+    setAssignmentCourseId(courseId || (courses[0] ? String(courses[0].id) : ""));
     setLearnerId("");
     setDueDate("");
     setModalOpen(true);
@@ -105,11 +109,13 @@ export default function EnrollmentManagementPage() {
     setError("");
     setSuccess("");
     try {
-      const created = await apiFetch<Enrollment>(`/api/courses/${courseId}/enrollments`, {
+      const created = await apiFetch<Enrollment>(`/api/courses/${assignmentCourseId}/enrollments`, {
         method: "POST",
         body: JSON.stringify({ learnerId: Number(learnerId), dueDate: dueDate || null }),
       });
-      setEnrollments((current) => [...current, created]);
+      if (!courseId || courseId === assignmentCourseId) {
+        setEnrollments((current) => [created, ...current]);
+      }
       setModalOpen(false);
       setSuccess("Learner enrolled and access granted.");
     } catch (requestError) {
@@ -153,7 +159,7 @@ export default function EnrollmentManagementPage() {
       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `enrollments-${selectedCourse?.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") || courseId}.csv`;
+      link.download = `enrollments-${selectedCourse?.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "all-courses"}.csv`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (requestError) {
@@ -165,7 +171,7 @@ export default function EnrollmentManagementPage() {
 
   return (
     <div className="page-stack">
-      <PageTitle title="Enrollment management" description="Assign learners to published courses and manage their access." action={<Button onClick={openAssignment} disabled={!courseId}><Icon name="plus" size={17} />Assign learner</Button>} />
+      <PageTitle title="Enrollment management" description="Assign learners to published courses and manage their access." action={<Button onClick={openAssignment} disabled={courses.length === 0}><Icon name="plus" size={17} />Assign learner</Button>} />
       <ToastMessage message={error} type="error" />
       <ToastMessage message={success} type="success" />
 
@@ -179,7 +185,7 @@ export default function EnrollmentManagementPage() {
       <section className="enrollment-panel">
         <div className="enrollment-toolbar">
           <Input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search learner name or ID" aria-label="Search enrollments" />
-          <Select value={courseId} onChange={(event) => selectCourse(event.target.value)} aria-label="Course filter">{courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}</Select>
+          <Select value={courseId} onChange={(event) => selectCourse(event.target.value)} aria-label="Course filter"><option value="">All courses</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}</Select>
           <Select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }} aria-label="Status filter"><option value="">All statuses</option><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option><option value="completed">Completed</option></Select>
           <Select value={dueFilter} onChange={(event) => { setDueFilter(event.target.value); setPage(1); }} aria-label="Due date filter"><option value="">All due dates</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option><option value="none">No due date</option></Select>
           <Button variant="secondary" onClick={exportCsv}>Export CSV</Button>
@@ -191,7 +197,7 @@ export default function EnrollmentManagementPage() {
               <thead><tr><th>Learner</th><th>Course</th><th>Enrolled</th><th>Due date</th><th>Status</th><th>Access</th><th>Action</th></tr></thead>
               <tbody>{visibleEnrollments.map((item) => {
                 const overdue = isOverdue(item);
-                return <tr key={item.id}><td><strong>{item.learnerName}</strong><p>ID: {item.learnerId}</p></td><td>{selectedCourse?.title}</td><td>{formatDate(item.enrolledAt)}</td><td>{item.dueDate ? <span className={overdue ? "overdue-text" : ""}>{formatDate(item.dueDate)}{overdue ? " · Overdue" : ""}</span> : <span className="muted-text">No due date</span>}</td><td><Badge tone={item.status === "approved" || item.status === "completed" ? "green" : item.status === "pending" ? "amber" : "neutral"}>{item.status}</Badge></td><td>{item.status === "completed" ? <span className="muted-text">Read only</span> : <Select value={item.status} onChange={(event) => updateStatus(item.id, event.target.value)} aria-label={`Access for ${item.learnerName}`}><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></Select>}</td><td><Button variant="danger" className="button-small" disabled={busy} onClick={() => removeEnrollment(item)}>Remove</Button></td></tr>;
+                return <tr key={item.id}><td><strong>{item.learnerName}</strong><p>ID: {item.learnerId}</p></td><td>{courseTitles.get(item.courseId) || `Course ${item.courseId}`}</td><td>{formatDate(item.enrolledAt)}</td><td>{item.dueDate ? <span className={overdue ? "overdue-text" : ""}>{formatDate(item.dueDate)}{overdue ? " · Overdue" : ""}</span> : <span className="muted-text">No due date</span>}</td><td><Badge tone={item.status === "approved" || item.status === "completed" ? "green" : item.status === "pending" ? "amber" : "neutral"}>{item.status}</Badge></td><td>{item.status === "completed" ? <span className="muted-text">Read only</span> : <Select value={item.status} onChange={(event) => updateStatus(item.id, event.target.value)} aria-label={`Access for ${item.learnerName}`}><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></Select>}</td><td><Button variant="danger" className="button-small" disabled={busy} onClick={() => removeEnrollment(item)}>Remove</Button></td></tr>;
               })}</tbody>
             </table>
           </div>
@@ -202,7 +208,7 @@ export default function EnrollmentManagementPage() {
 
       <Modal open={modalOpen} title="Assign learner" onClose={() => setModalOpen(false)}>
         <form className="modal-form" onSubmit={assign}>
-          <Field label="Course"><Select value={courseId} onChange={(event) => selectCourse(event.target.value)} required>{courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}</Select></Field>
+          <Field label="Course"><Select value={assignmentCourseId} onChange={(event) => setAssignmentCourseId(event.target.value)} required>{courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}</Select></Field>
           <SearchableSelect
             label="Learner"
             value={learnerId}
@@ -211,7 +217,7 @@ export default function EnrollmentManagementPage() {
             options={learners.map((learner) => ({ value: String(learner.id), label: `${learner.firstName} ${learner.lastName} · ${learner.email}` }))}
           />
           <Field label="Due date" hint="Optional"><Input type="datetime-local" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
-          <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit" disabled={busy || !learnerId}>{busy ? "Assigning..." : "Assign learner"}</Button></div>
+          <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit" disabled={busy || !assignmentCourseId || !learnerId}>{busy ? "Assigning..." : "Assign learner"}</Button></div>
         </form>
       </Modal>
     </div>

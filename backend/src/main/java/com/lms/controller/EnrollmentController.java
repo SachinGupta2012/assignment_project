@@ -56,6 +56,11 @@ public class EnrollmentController {
         return ResponseEntity.ok(enrollmentService.getByCourse(courseId, pageable));
     }
 
+    @GetMapping("/enrollments")
+    public ResponseEntity<Page<EnrollmentResponse>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(enrollmentService.getAll(pageable));
+    }
+
     @PatchMapping("/enrollments/{enrollmentId}")
     public ResponseEntity<EnrollmentResponse> updateStatus(@PathVariable Long enrollmentId,
                                                            @RequestParam String status) {

@@ -60,6 +60,7 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
   const [lessonDuration, setLessonDuration] = useState("");
   const [lessonRequired, setLessonRequired] = useState(true);
 
+  const [assessmentId, setAssessmentId] = useState<number | null>(null);
   const [assessmentTitle, setAssessmentTitle] = useState("");
   const [assessmentDescription, setAssessmentDescription] = useState("");
   const [assessmentModuleId, setAssessmentModuleId] = useState("");
@@ -138,6 +139,7 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
   }
 
   function resetAssessmentForm() {
+    setAssessmentId(null);
     setAssessmentTitle("");
     setAssessmentDescription("");
     setAssessmentModuleId(modules[0] ? String(modules[0].id) : "");
@@ -149,6 +151,19 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
 
   function addAssessment() {
     resetAssessmentForm();
+    clearMessages();
+    setActiveModal("assessment");
+  }
+
+  function editAssessment(assessment: Assessment) {
+    setAssessmentId(assessment.id);
+    setAssessmentTitle(assessment.title);
+    setAssessmentDescription(assessment.description ?? "");
+    setAssessmentModuleId(assessment.moduleId === null ? "" : String(assessment.moduleId));
+    setPassingScore(String(assessment.passingScore));
+    setTimeLimit(assessment.timeLimitMinutes ? String(assessment.timeLimitMinutes) : "");
+    setMaxAttempts(String(assessment.maxAttempts));
+    setAssessmentOrder(String(assessment.displayOrder));
     clearMessages();
     setActiveModal("assessment");
   }
@@ -223,6 +238,21 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
     }
   }
 
+  async function deleteModule(module: ModuleWithLessons) {
+    if (!window.confirm(`Delete "${module.title}" and its lessons? This cannot be undone.`)) return;
+    setBusy(true);
+    clearMessages();
+    try {
+      await apiFetch(`/api/courses/${courseId}/modules/${module.id}`, { method: "DELETE" });
+      setModules((current) => current.filter((item) => item.id !== module.id));
+      setSuccess("Module deleted.");
+    } catch (requestError) {
+      setError(messageFrom(requestError, "Could not delete the module."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function resetLessonForm() {
     setLessonId(null);
     setLessonTitle("");
@@ -285,13 +315,16 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
     }
   }
 
-  async function createAssessment(event: FormEvent<HTMLFormElement>) {
+  async function saveAssessment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     clearMessages();
     try {
-      const saved = await apiFetch<Assessment>(`/api/courses/${courseId}/assessments`, {
-        method: "POST",
+      const path = assessmentId
+        ? `/api/courses/${courseId}/assessments/${assessmentId}`
+        : `/api/courses/${courseId}/assessments`;
+      const saved = await apiFetch<Assessment>(path, {
+        method: assessmentId ? "PUT" : "POST",
         body: JSON.stringify({
           moduleId: assessmentModuleId ? Number(assessmentModuleId) : null,
           title: assessmentTitle.trim(),
@@ -302,14 +335,40 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
           displayOrder: Number(assessmentOrder),
         }),
       });
-      setAssessments((current) => [...current, saved].sort((a, b) => a.displayOrder - b.displayOrder));
-      setQuestions((current) => ({ ...current, [saved.id]: [] }));
+      setAssessments((current) => (assessmentId
+        ? current.map((item) => item.id === saved.id ? saved : item)
+        : [...current, saved]).sort((a, b) => a.displayOrder - b.displayOrder));
+      if (!assessmentId) setQuestions((current) => ({ ...current, [saved.id]: [] }));
       setQuestionAssessmentId(String(saved.id));
-      setSuccess("Assessment created.");
+      setSuccess(assessmentId ? "Assessment updated." : "Assessment created.");
       resetAssessmentForm();
       setActiveModal(null);
     } catch (requestError) {
-      setError(messageFrom(requestError, "Could not create the assessment."));
+      setError(messageFrom(requestError, "Could not save the assessment."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteAssessment(assessment: Assessment) {
+    if (!window.confirm(`Delete "${assessment.title}" and all of its questions? This cannot be undone.`)) return;
+    setBusy(true);
+    clearMessages();
+    try {
+      await apiFetch(`/api/courses/${courseId}/assessments/${assessment.id}`, { method: "DELETE" });
+      const remaining = assessments.filter((item) => item.id !== assessment.id);
+      setAssessments(remaining);
+      setQuestions((current) => {
+        const next = { ...current };
+        delete next[assessment.id];
+        return next;
+      });
+      if (questionAssessmentId === String(assessment.id)) {
+        setQuestionAssessmentId(remaining[0] ? String(remaining[0].id) : "");
+      }
+      setSuccess("Assessment deleted.");
+    } catch (requestError) {
+      setError(messageFrom(requestError, "Could not delete the assessment."));
     } finally {
       setBusy(false);
     }
@@ -399,7 +458,7 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
                     <span className="builder-heading-copy"><strong>{module.displayOrder}. {module.title}</strong><small>{module.description || "No description"}</small></span>
                     <Badge tone="blue">{module.lessons.length} lessons</Badge>
                   </button>
-                  <div className="builder-row-actions"><button type="button" className="builder-icon-action" onClick={() => editModule(module)} aria-label={`Edit ${module.title}`}><Icon name="edit" size={16} /></button><button type="button" className="builder-icon-action builder-delete" disabled title="Delete is not available in the backend" aria-label={`Delete ${module.title}`}><Icon name="trash" size={16} /></button></div>
+                  <div className="builder-row-actions"><button type="button" className="builder-icon-action" onClick={() => editModule(module)} aria-label={`Edit ${module.title}`}><Icon name="edit" size={16} /></button><button type="button" className="builder-icon-action builder-delete" disabled={busy || course.isPublished} title={course.isPublished ? "Unpublish the course before deleting modules" : "Delete module"} onClick={() => deleteModule(module)} aria-label={`Delete ${module.title}`}><Icon name="trash" size={16} /></button></div>
                 </div>
                 {expanded ? <div className="builder-children">{module.lessons.length ? module.lessons.map((lesson) => (
                   <div key={lesson.id} className="builder-child-row">
@@ -432,7 +491,7 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
                     <span className="builder-heading-copy"><strong>{assessment.title}</strong><small>{assessment.description || `${assessmentQuestions.length} questions`}</small></span>
                     <span className="builder-badges"><Badge tone="green">{assessment.passingScore}% pass</Badge><Badge tone="blue">{assessment.maxAttempts} attempts</Badge>{assessment.timeLimitMinutes ? <Badge>{assessment.timeLimitMinutes} min</Badge> : null}</span>
                   </button>
-                  <div className="builder-row-actions"><button type="button" className="builder-icon-action" disabled title="Assessment editing is not available in the backend" aria-label={`Edit ${assessment.title}`}><Icon name="edit" size={16} /></button><button type="button" className="builder-icon-action builder-delete" disabled title="Delete is not available in the backend" aria-label={`Delete ${assessment.title}`}><Icon name="trash" size={16} /></button></div>
+                  <div className="builder-row-actions"><button type="button" className="builder-icon-action" disabled={busy} onClick={() => editAssessment(assessment)} aria-label={`Edit ${assessment.title}`}><Icon name="edit" size={16} /></button><button type="button" className="builder-icon-action builder-delete" disabled={busy || course.isPublished} title={course.isPublished ? "Unpublish the course before deleting assessments" : "Delete assessment"} onClick={() => deleteAssessment(assessment)} aria-label={`Delete ${assessment.title}`}><Icon name="trash" size={16} /></button></div>
                 </div>
                 {expanded ? <div className="builder-children">{assessmentQuestions.length ? assessmentQuestions.map((question) => (
                   <div key={question.id} className="builder-child-row">
@@ -469,13 +528,13 @@ export function CourseContentManager({ courseId }: { courseId: number }) {
         </form>
       </Modal>
 
-      <Modal open={activeModal === "assessment"} title="Add assessment" onClose={closeModal}>
-        <form className="modal-form" onSubmit={createAssessment}>
+      <Modal open={activeModal === "assessment"} title={assessmentId ? "Edit assessment" : "Add assessment"} onClose={closeModal}>
+        <form className="modal-form" onSubmit={saveAssessment}>
           <Field label="Title"><Input value={assessmentTitle} onChange={(event) => setAssessmentTitle(event.target.value)} required /></Field>
           <Field label="Description"><Textarea value={assessmentDescription} onChange={(event) => setAssessmentDescription(event.target.value)} rows={3} /></Field>
           <Field label="Module" hint="Leave blank for a course-level assessment."><Select value={assessmentModuleId} onChange={(event) => setAssessmentModuleId(event.target.value)}><option value="">Course level</option>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</Select></Field>
           <div className="form-grid"><Field label="Passing score"><Input type="number" min="0" max="100" value={passingScore} onChange={(event) => setPassingScore(event.target.value)} required /></Field><Field label="Maximum attempts"><Input type="number" min="1" value={maxAttempts} onChange={(event) => setMaxAttempts(event.target.value)} required /></Field><Field label="Time limit (minutes)"><Input type="number" min="1" value={timeLimit} onChange={(event) => setTimeLimit(event.target.value)} /></Field><Field label="Display order"><Input type="number" min="1" value={assessmentOrder} onChange={(event) => setAssessmentOrder(event.target.value)} required /></Field></div>
-          <div className="form-actions"><Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving..." : "Add assessment"}</Button></div>
+          <div className="form-actions"><Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving..." : assessmentId ? "Update assessment" : "Add assessment"}</Button></div>
         </form>
       </Modal>
 

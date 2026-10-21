@@ -7,8 +7,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +42,19 @@ public class AssessmentController {
     @GetMapping("/courses/{courseId}/assessments")
     public ResponseEntity<Page<AssessmentResponse>> getByCourse(@PathVariable Long courseId, Pageable pageable) {
         return ResponseEntity.ok(assessmentService.getByCourse(courseId, pageable));
+    }
+
+    @PutMapping("/courses/{courseId}/assessments/{assessmentId}")
+    public ResponseEntity<AssessmentResponse> update(@PathVariable Long courseId,
+                                                      @PathVariable Long assessmentId,
+                                                      @Valid @RequestBody AssessmentRequest request) {
+        return ResponseEntity.ok(assessmentService.update(courseId, assessmentId, request));
+    }
+
+    @DeleteMapping("/courses/{courseId}/assessments/{assessmentId}")
+    public ResponseEntity<Void> delete(@PathVariable Long courseId, @PathVariable Long assessmentId) {
+        assessmentService.delete(courseId, assessmentId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/assessments/{assessmentId}/questions")

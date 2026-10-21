@@ -13,5 +13,6 @@ import org.springframework.data.domain.Pageable;
 public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
     List<Assessment> findByCourseIdOrderByDisplayOrder(Long courseId);
     List<Assessment> findByModuleIdOrderByDisplayOrder(Long moduleId);
+    boolean existsByModuleId(Long moduleId);
     Page<Assessment> findByCourseId(Long courseId, Pageable pageable);
 }

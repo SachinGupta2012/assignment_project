@@ -69,17 +69,19 @@ interface GroupedAnswer {
   points: number;
   pointsAwarded: number;
   feedback: string | null;
+  requiresManualGrading: boolean;
 }
 
 function AnswerResult({ answer, index, pending }: { answer: GroupedAnswer; index: number; pending: boolean }) {
   const correct = answer.points > 0 && answer.pointsAwarded >= answer.points;
   const partial = !correct && answer.pointsAwarded > 0;
-  const status = correct ? "Correct" : partial ? "Partial credit" : pending ? "Pending review" : "Needs review";
+  const awaitingReview = pending && answer.requiresManualGrading;
+  const status = correct ? "Correct" : partial ? "Partial credit" : awaitingReview ? "Pending review" : "Incorrect";
   const explanation = correct
     ? "This response earned full points."
     : partial
       ? "This response earned partial credit. Review the instructor feedback for more detail."
-      : pending
+      : awaitingReview
         ? "This response is waiting for instructor review."
         : "This response did not earn points. Review the course material before trying again.";
 
@@ -87,7 +89,7 @@ function AnswerResult({ answer, index, pending }: { answer: GroupedAnswer; index
     <article className={`answer-result-card${correct ? " answer-result-correct" : ""}`}>
       <div className="answer-review-heading">
         <div><span>Question {index + 1}</span><h3>{answer.questionText}</h3></div>
-        <div className="answer-result-score"><Badge tone={correct ? "green" : partial ? "blue" : pending ? "amber" : "neutral"}>{correct ? <Icon name="check" size={14} /> : null}{status}</Badge><strong>{answer.pointsAwarded} / {answer.points} points</strong></div>
+        <div className="answer-result-score"><Badge tone={correct ? "green" : partial ? "blue" : awaitingReview ? "amber" : "neutral"}>{correct ? <Icon name="check" size={14} /> : null}{status}</Badge><strong>{answer.pointsAwarded} / {answer.points} points</strong></div>
       </div>
       <div className={`answer-response${correct ? " answer-response-correct" : ""}`}><span>Your answer</span><p>{answer.response || "No answer submitted"}</p></div>
       <div className="answer-explanation"><strong>Explanation</strong><p>{explanation}</p></div>
@@ -106,6 +108,7 @@ function groupAnswers(answers: AttemptAnswer[]) {
       existing.response = [existing.response, response].filter(Boolean).join(", ");
       existing.pointsAwarded += Number(answer.pointsAwarded);
       existing.feedback = existing.feedback || answer.feedback;
+      existing.requiresManualGrading ||= answer.answerText !== null;
     } else {
       grouped.set(answer.questionId, {
         questionId: answer.questionId,
@@ -114,6 +117,7 @@ function groupAnswers(answers: AttemptAnswer[]) {
         points: Number(answer.points),
         pointsAwarded: Number(answer.pointsAwarded),
         feedback: answer.feedback,
+        requiresManualGrading: answer.answerText !== null,
       });
     }
   }

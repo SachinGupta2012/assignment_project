@@ -14,7 +14,7 @@ import { ToastMessage } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/api";
 import { getCourseContent, type ModuleWithLessons } from "@/lib/courses";
 import { hasPermission } from "@/lib/permissions";
-import type { Assessment, Course, Enrollment, Lesson, PageResponse, Progress } from "@/types/api";
+import type { Assessment, Attempt, Course, Enrollment, Lesson, PageResponse, Progress } from "@/types/api";
 
 export function CourseDetails({ courseId }: { courseId: number }) {
   const router = useRouter();
@@ -25,6 +25,8 @@ export function CourseDetails({ courseId }: { courseId: number }) {
   const [enrolled, setEnrolled] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [requiredLessonsComplete, setRequiredLessonsComplete] = useState(false);
+  const [nextAssessmentId, setNextAssessmentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -53,8 +55,19 @@ export function CourseDetails({ courseId }: { courseId: number }) {
           if (enrollment) {
             const progressData = await apiFetch<Progress>(`/api/courses/${courseId}/progress`);
             setProgress(progressData.percentage);
+            setRequiredLessonsComplete(progressData.requiredLessonsDone >= progressData.requiredLessonsTotal);
+            const requiredAssessments = assessmentData.content
+              .filter((assessment) => assessment.isRequired)
+              .sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id);
+            const attemptGroups = await Promise.all(requiredAssessments.map((assessment) =>
+              apiFetch<Attempt[]>(`/api/assessments/${assessment.id}/attempts/me`)));
+            const nextAssessment = requiredAssessments.find((_, index) =>
+              !attemptGroups[index].some((attempt) => attempt.status === "graded" && attempt.passed === true));
+            setNextAssessmentId(nextAssessment?.id ?? null);
           } else {
             setProgress(0);
+            setRequiredLessonsComplete(false);
+            setNextAssessmentId(null);
           }
         }
       } catch (requestError) {
@@ -78,6 +91,8 @@ export function CourseDetails({ courseId }: { courseId: number }) {
       setEnrolled(true);
       setEnrollmentStatus(enrollment.status);
       setProgress(0);
+      setRequiredLessonsComplete(false);
+      setNextAssessmentId(null);
       setSuccess("Enrollment successful. You can start the course now.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not enroll in this course.");
@@ -87,6 +102,10 @@ export function CourseDetails({ courseId }: { courseId: number }) {
   }
 
   async function continueLearning() {
+    if (requiredLessonsComplete && nextAssessmentId) {
+      router.push(`/courses/${courseId}/assessments/${nextAssessmentId}`);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -94,9 +113,7 @@ export function CourseDetails({ courseId }: { courseId: number }) {
       router.push(`/courses/${courseId}/lessons/${lesson.id}`);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Could not resume this course.";
-      setError(message.includes("All required lessons are complete")
-        ? "All required lessons are complete. Continue with a required assessment below."
-        : message);
+      setError(message);
     } finally {
       setBusy(false);
     }

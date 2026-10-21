@@ -13,6 +13,8 @@ import com.lms.entity.CourseModule;
 import com.lms.entity.User;
 import com.lms.repository.CourseModuleRepository;
 import com.lms.repository.CourseRepository;
+import com.lms.repository.AssessmentRepository;
+import com.lms.repository.LessonCompletionRepository;
 import com.lms.repository.UserRepository;
 
 @Service
@@ -20,13 +22,19 @@ public class ModuleService {
 
     private final CourseModuleRepository moduleRepository;
     private final CourseRepository courseRepository;
+    private final AssessmentRepository assessmentRepository;
+    private final LessonCompletionRepository completionRepository;
     private final UserRepository userRepository;
 
     public ModuleService(CourseModuleRepository moduleRepository,
                          CourseRepository courseRepository,
+                         AssessmentRepository assessmentRepository,
+                         LessonCompletionRepository completionRepository,
                          UserRepository userRepository) {
         this.moduleRepository = moduleRepository;
         this.courseRepository = courseRepository;
+        this.assessmentRepository = assessmentRepository;
+        this.completionRepository = completionRepository;
         this.userRepository = userRepository;
     }
 
@@ -78,6 +86,25 @@ public class ModuleService {
         module.setIsRequired(request.getIsRequired() == null || request.getIsRequired());
         module.setUpdatedBy(getCurrentUser());
         return toResponse(moduleRepository.save(module));
+    }
+
+    @Transactional
+    public void delete(Long courseId, Long moduleId) {
+        CourseModule module = moduleRepository.findById(moduleId)
+                .orElseThrow(() -> new RuntimeException("Module not found: " + moduleId));
+        if (!module.getCourse().getId().equals(courseId)) {
+            throw new RuntimeException("Module " + moduleId + " does not belong to course " + courseId);
+        }
+        if (Boolean.TRUE.equals(module.getCourse().getIsPublished())) {
+            throw new RuntimeException("Unpublish the course before deleting modules");
+        }
+        if (assessmentRepository.existsByModuleId(moduleId)) {
+            throw new RuntimeException("Move or delete this module's assessments first");
+        }
+        if (completionRepository.existsByLessonModuleId(moduleId)) {
+            throw new RuntimeException("This module has learner progress and cannot be deleted");
+        }
+        moduleRepository.delete(module);
     }
 
     private User getCurrentUser() {

@@ -10,6 +10,7 @@ import com.lms.entity.AssessmentAttempt;
 @Repository
 public interface AssessmentAttemptRepository extends JpaRepository<AssessmentAttempt, Long> {
     long countByAssessmentIdAndLearnerId(Long assessmentId, Long learnerId);
+    boolean existsByAssessmentId(Long assessmentId);
     List<AssessmentAttempt> findByAssessmentIdAndLearnerIdOrderByAttemptNumberAsc(Long assessmentId, Long learnerId);
     List<AssessmentAttempt> findByAssessmentId(Long assessmentId);
 }
